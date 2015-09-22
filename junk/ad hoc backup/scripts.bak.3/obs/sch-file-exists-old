@@ -1,0 +1,182 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-file-exists
+# Created:   05/10/2014
+# Purpose:   Determine if a file exists and has specified properties. If
+#            it doesn't have all the specified properties, report lacking
+#            ones on stdout
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.comm
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#===============================================================================
+. /usr/bin/sch-constants
+#========= initializations ===================================================== 
+FileSpec=''; Output=''; Fail=1
+Read=1; Write=1; Exe=1; File=1; Dir=1; Mime=1; MimeSpec=''
+Empty=1; Symb=1; OwnUID=1; OwnGID=1
+
+#========= functions ===========================================================
+usage()
+{
+cat << EOF
+NAME
+       THIS_SCRIPT - Determine if a file exists and has specified properties.
+       If it doesn't have all the specified properties, report lacking ones
+       on stdout
+
+SYNOPSIS
+       THIS_SCRIPT [OPTION]... [FILE]...
+
+DESCRIPTION
+       Where possible, options follow operators in dash 'test' builtin, the
+       exceptions being -e, -m and -s
+
+       -s <filespec>
+	           ARG: filespec (absolute or relative path)
+       -r has read permissions
+       -w has write permissions (result not valid on readonly file system)
+       -x has execute permissions
+       -f is a regular file
+       -d is a directory
+       -N is a symbolic link
+       -e is not empty
+       -O is owned by effective UID of this process
+       -G is owned by effective GID of this process
+       -m <mime-type>
+	           ARG: mime-type (eg 'text/plain')
+EXIT STATUS
+       0      File exists and has all the properties
+              specified by the options.
+
+       1      File does not exist or is missing one or
+              more properties specified by the options.
+
+       StdOut If exit status 1, lists the missing properties
+              in a space-separated string. For example:
+
+              'non-readable non-writable non-executable'
+
+              Possible elements in the output string are:-
+
+               either 'non-existent'
+               or 'bad-arguments-d-f-mutually-exclusive'
+               or 'bad-argument-s-missing-filespec'
+               or some of:
+              -r 'non-readable'
+              -w 'non-writable'
+              -x 'non-executable'
+              -f 'non-regular-file'
+              -d 'non-directory'
+              -N 'non-symbolic-link'
+              -e 'non-empty-file'
+              -O 'not-owned-by-this-UID'
+              -G 'not-owned-by-this-GID'
+              -m 'not-specified-mimetype' 
+
+EXAMPLES
+       Check that file exists and is regular, readable, writable:
+       THIS_SCRIPT -s '/home/mary/her-doc.txt' -frw
+       
+       Check that file exists and is readable textfile:
+       THIS_SCRIPT -s '/home/fred/histext.txt' -r -m 'text/plain'
+       
+TODO
+       Don't put error messages on stdout
+       
+EOF
+}
+
+local_abend () { # $1=line-no $2=error-code $3=error-message 
+      sch-dlg-error -r "$THIS_SCRIPT" -l "$1" -c "$2" -m "$3"
+      exit 9
+}
+
+#========= main ================================================================
+while getopts ":s:rwxfNdeOGm:h" Option
+do
+      case "$Option" in
+            s ) FileSpec="$OPTARG" ;;
+            r ) Read=0 ;;
+            w ) Write=0 ;;
+            x ) Exe=0 ;;
+            f ) File=0 ;;
+            d ) Dir=0 ;;
+            e ) Empty=0 ;;
+            N ) Symb=0 ;;
+            O ) OwnUID=0 ;;
+            G ) OwnGID=0 ;;
+            m ) Mime=0; MimeSpec="$OPTARG";;
+            h ) usage; exit 0 ;;
+            * ) local_abend '124' '10257' 'invalid or missing option' ;;
+      esac
+done
+
+# validate args
+if [ "$Dir" = 0 ] && [ "$File" = 0 ]; then
+      local_abend '130' '17944' "-f and -d options are mutually exclusive"
+fi
+
+[ "$FileSpec" != '' ] || local_abend '133' '56123' 'missing option or argument -s'
+
+if [ "$Mime" = 0 ] && [ "$MimeSpec" = '' ]; then
+	local_abend '136' '41618' 'missing argument for option -m'
+fi
+
+# check against specified characteristics
+[ -e "$FileSpec" ] || { Output="$Output non-existant"; echo "$Output"; exit 1; }
+
+if [ "$Read" = 0 ] && [ ! -r "$FileSpec" ]; then
+      Output="$Output non-readable"; Fail=0
+fi
+
+if [ "$Write" = 0 ] && [ ! -w "$FileSpec" ]; then
+      Output="$Output non-writable"; Fail=0
+fi
+
+if [ "$Exe" = 0 ] && [ ! -x "$FileSpec" ]; then
+      Output="$Output non-executable"; Fail=0
+fi
+
+if [ "$Dir" = 0 ] && [ ! -d "$FileSpec" ]; then
+      Output="$Output non-directory"; Fail=0
+fi
+
+if [ "$Symb" = 0 ] && [ ! -S "$FileSpec" ]; then
+      Output="$Output non-symbolic-link"; Fail=0
+fi
+
+if [ "$File" = 0 ] && [ ! -f "$FileSpec" ]; then
+      Output="$Output non-regular-file"; Fail=0
+fi
+
+if [ "$Empty" = 0 ] && [ ! -s "$FileSpec" ]; then
+      Output="$Output non-empty"; Fail=0
+fi
+
+if [ "$OwnUID" = 0 ] && [ ! -O "$FileSpec" ]; then
+      Output="$Output not-owned-by-this-UID"; Fail=0
+fi
+
+if [ "$OwnGID" = 0 ] && [ ! -G "$FileSpec" ]; then
+      Output="$Output not-owned-by-this-GID"; Fail=0
+fi
+
+if [ "$Mime" = 0 ] && [ $(file -b --mime-type "$FileSpec") != "$MimeSpec" ]; then
+      Output="$Output not-specified-mimetype"; Fail=0
+fi
+
+[ "$Fail" = 0 ] && { echo "$Output"; exit 1; }; exit 0

@@ -1,0 +1,119 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-config
+# Created:   14/07/2015
+# Purpose:   interface to 'ini' type configuration files, with special
+#            provision for user config file.
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+[ "$(whoami)" != 'root' ] || { echo "sch-config can't run as root"; exit 1; }
+#=======================================================================
+
+#=initialization========================================================
+readonly UConf="$HOME/.schooner/user-config"
+readonly UConfDefault='/usr/share/schooner/user-config'
+Operation=''; Section=''; Key=''; Value=''; Rtn=''
+o=1; s=1; k=1; v=1
+
+#=functions=============================================================
+usage()
+{
+cat << EOF
+NAME
+      sch-config - interface to user config file 
+
+SYNOPSIS
+       sch-config [OPTION]... [ARG]...
+
+DESCRIPTION
+      -o  <'get' | 'set' | 'exists' | 'reset'>
+              
+      -s  <section-name>
+ 
+      -k  <key-name>
+              
+      -v  <value>
+      
+      -r  reset config file to default
+      
+      -h
+
+EXIT STATUS
+      0      if OK
+      1      if failed       
+      stdout putonstdout
+      
+NOTES
+      If the user config file (/home/<username>/.schooner/user-config) doesn't
+      exist, sch-config will attempt to copy /usr/share/schooner/user-config in
+USAGE
+      sch-config -o 'set' -s 'My Section' -k 'MyKey' -v 'mynewvalue'
+
+EOF
+}
+
+abend() { sch-error -c "$1" -m "$2"; exit; } # $1=error-code $2=error-message
+
+reset_user_conf() {
+      cp -f "$UConfDefault" "$UConf"
+      [ $? ] || abend '83553' 'failed to reset user config'
+}
+
+while getopts ":o:s:k:v:" Option
+do
+	case "$Option" in
+	      o ) o=0; Operation="$OPTARG" ;;
+		s ) s=0; Section="$OPTARG";;
+		k ) k=0; Key="$OPTARG";; 
+		v ) v=0; Value="$OPTARG";; 
+		h ) usage; exit 0 ;;			   
+	esac
+done
+
+sch-file-exists -s "$UConf" -rf; [ $? ] || reset_user_conf
+[ $o = 0 ] || abend '67543' 'missing option or argument -o'
+[ $s = 0 ] || abend '93142' 'missing option or argument -s'
+[ $k = 0 ] || abend '76501' 'missing option or argument -k'
+[ "$Section" != '' ] || abend '09075' 'missing option or argument -s'
+[ "$Key" != '' ] || abend '01915' 'missing option or argument -k'
+
+
+case "$Operation" in
+      'set')
+            [ $v = 0 ] || abend '30418' 'missing option or argument -v'
+            # null $Value is valid
+            sch-crudini --set "$UConf" "$Section" "$Key" "$Value"
+            [ $? = 0 ] || abend '49438' "failed to set value in user config" ;;
+            
+      'get')
+            sch-crudini --get "$UConf" "$Section" "$Key"
+            [ $? = 0 ] || exit 1 ;; # null return is valid
+                        
+      'exists')
+            [ $v = 0 ] || abend '97486' 'missing option or argument -v'
+            # don't screen out null $Value- it's a valid input
+            Rtn=$(sch-crudini --get "$UConf" "$Section" "$Key")
+            [ "$Value" = "$Rtn" ] || exit 1 ;;
+             
+      'reset') reset_user_conf ;;
+             
+            *) abend '29066' 'missing or invalid argument for option -o' ;;
+esac
+
+exit 0
+ 

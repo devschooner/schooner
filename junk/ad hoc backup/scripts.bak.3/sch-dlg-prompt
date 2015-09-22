@@ -1,0 +1,87 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-dialg-prompt
+# Created:   16/07/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-include
+#=======================================================================
+
+
+
+App=''; Caption=''; Prompt=''; Icon=''
+
+while getopts ":a:c:p:i:h" Option
+do
+      case "$Option" in
+            a ) App="$OPTARG";;
+            c ) Caption="$OPTARG";;
+            p ) Prompt="$OPTARG";;
+            i ) Icon="$OPTARG";;
+            h ) usage; exit 0 ;;
+            * ) abend_bad_option '-??' '11110' ;;
+      esac
+done
+
+[ "$App" != '' ] || abend_bad_option '-a' '52233'
+[ "$Caption" != '' ] || abend_bad_option '-c' '60500'
+[ "$Prompt" != '' ] || abend_bad_option '-p' '33446'
+[ "$Icon" != '' ] || Icon='dialog-information'
+
+kdialog \
+      --yesno "$(echo $Prompt |fmt -50 -u)" \
+      --title "$App" \
+      --icon "$Icon" \
+      --caption "$Caption"
+
+# exit with status of kdialog
+
+usage() {
+cat << EOF
+NAME
+      sch-dlg-prompt - display prompt with Yes and No buttons
+
+SYNOPSIS
+      $This_Script [OPTION] [ARG]
+
+      -a <app-name>          appears left side of title
+
+      -c <caption>           appears right side of title
+
+      -p <prompt>            text of prompt
+
+      -i <icon>              appears in title bar
+
+      -h                     display usage
+
+      -a, c, p are all required
+      -i is optional - default is 'dialog-information'
+      -h overrides any other options
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if 'Yes' pressed or -h option used
+      1      if 'No' pressed
+
+USAGE
+      $This_Script -a 'MyApp' -c 'doing something' -p 'MyPrompt' -i 'MyIcon'
+
+EOF
+}

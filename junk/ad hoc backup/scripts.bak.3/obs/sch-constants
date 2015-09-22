@@ -1,0 +1,98 @@
+#!/bin/dash #shebang is redundant but triggers syntax colouring
+#=======================================================================
+# File:      sch-constants
+# Created:   04/08/2015
+# Purpose:   constants for Schooner scripts
+# Copyright: © author
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+readonly Userhome_Place_Holder='==98246242=Place_Holder=8578177=='
+readonly User_Sch_Dir="$HOME/.schooner"
+readonly System_Sch_Dir='/usr/share/schooner'
+
+readonly User_Log="$User_Sch_Dir/user-log"
+readonly User_Conf="$User_Sch_Dir/user-conf"
+
+readonly Mini_Backup_Dir="$User_Sch_Dir/local-backup"
+readonly Mini_Backup_Max_Copies=50
+
+readonly This_Script="$(basename $0)"
+readonly This_User="$(whoami)"
+
+abend() { # $1=error-code # $2=error-msg
+      local ErrCode="$1"; local ErrMsg="$2"
+      local Source=''; local LineNo=''; local ClipSel=''
+      local Line1=''; local Line2=''; local Line3=''
+ 
+      [ "$ErrMsg" != '' ] || ErrMsg='command failed'
+      # error-code must be 5 numeric chars
+      if [ ${#ErrCode} -ne 5 ]; then #internal error
+            ErrCode='08450'; ErrMsg='invalid parameter $1' 
+      fi
+      case ${ErrCode#} in 
+            *[!0-9]* ) ErrCode='48466'; ErrMsg='invalid parameter $1' ;;
+      esac  
+
+      # grep for the calling routine in /usr/bin. To speed things up, assume
+      # there are no duplicate error codes in scripts so that the first one found is
+      # the correct one. TODO add handling for case when error code not found by grep
+      Source="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f1)"
+      Source=$(basename "$Source")
+      [ "$Source" != '' ] || Source='(unknown)'
+      LineNo="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f2)" 
+      [ "$LineNo" != '' ] || LineNo='(unknown)'
+      Line1="Program $Source stopped at line $LineNo." 
+      Line2="The cause was: \"Error $ErrCode - $ErrMsg\"."
+      Line3="$(echo 'This message has been copied to the clipboard.' |fmt -u)" 
+      ClipSel="$Script_Start: $Line1 $Line2"
+      abort_if_root # qdbus line below causes odd behaviour if run as root
+      qdbus org.kde.klipper /klipper setClipboardContents "$ClipSel" 
+      touch "$User_Log"
+      chmod u+rw "$User_Log"
+      echo "$Script_Start | $This_Script | line $LineNo | $ErrCode | $ErrMsg" >> $User_Log 
+
+      kdialog \
+            --title 'Schooner' \
+            --caption 'Error Message'\
+            --error "$Line1<br><br>$Line2<br><br>$Line3"
+            
+            exit 9
+}
+
+get_user_conf() {  sch-userconf -o 'get' -s "$1" -k "$2"; } # $1=Sect $2=Key 
+
+set_user_conf() {  sch-userconf -o 'set' -s "$1" -k "$2" -v "$3"; } # $1=Sect $2=Key $3=Value
+
+# consistent format for datestamp eg 2015-07-11_23:21:57
+time_stamp() { date "+%Y-%m-%d_%H:%M:%S"; }
+
+readonly Script_Start=$(time_stamp)
+
+abort_if_root() {
+      if [ "$This_User" = 'root' ]; then
+            echo "$This_Script must not be run as root"; exit 9
+      fi
+}
+
+abort_if_not_root() {
+      if [ "$This_User" != 'root' ]; then
+            echo "$This_Script must be run as root"; exit 9
+      fi
+}
+
+
+ 

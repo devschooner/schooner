@@ -1,0 +1,171 @@
+#!/bin/dash 
+#===============================================================================
+# File:      sch-local-backup
+# Created:   21/07/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#===============================================================================
+. /usr/bin/sch-header; abort_if_root
+#===============================================================================
+
+#=initialization================================================================
+SourceDir=''
+BakName=''
+SubDir='' #"$User_Local_Backup_Dir/$BakName"
+readonly MaxCopies="$(get_user_conf 'Backups' 'max-cyclic-backups')"  
+BakFileSpec="$SubDir/$BakName-$(date_stamp)"
+o=1; b=1; s=1; f=1
+
+#=functions=====================================================================
+usage()
+{
+cat << EOF
+NAME
+      $This_Script - Provide consistent mechanism for user's short-term backups
+
+SYNOPSIS
+      $This_Script [OPTION]... [FILE]...
+
+DESCRIPTION
+      -h         show usage
+      
+      -o     < 'backup' | 'retrieve' >
+            operation
+
+      -s     <source-directory>
+                  filespec of "source" file or dir to backup
+
+      -b     <backup-name>
+                  backupname - descriptive name for backup
+                  
+      -f     <error-code> search text?
+
+      Provide consistent mechanism for user's short-term backups, storing
+      copies in subdirectories of $User_Local_Backup_Dir, keeping the
+      backed-up files rotated so that a specified number are kept (the
+      oldest gets deleted each time a backup is made). If no files have
+      changed since the last backup, do nothing.
+
+EXIT STATUS
+      0      if OK
+      1      if failed       
+      stdout putonstdout
+
+USAGE
+      usage+examples1
+
+      usage+examples2
+
+EOF
+}
+
+find_backup() { 
+# Allow user to find a local backup file by a combination of
+# filename, backup-date and text search.
+# TODO this function works but is very incomplete
+      local SearchText=$(sch-dlg-get-text \
+            -a 'Local Backup' \
+            -c 'Search for backed-up file' \
+            -p 'Please enter text you want to search for' \
+            -i 'filelight')
+      grep -rls "$SearchText" "$User_Local_Backup_Dir"
+      
+}
+
+#=main==========================================================================
+while getopts ":o:b:s:f:h" Option
+do
+      case "$Option" in
+            o ) o=0; Operation="$OPTARG" ;;
+            b ) b=0; BakName="$OPTARG" ;;
+            s ) s=0; SourceDir="$OPTARG" ;; 
+            s ) f=0; ErrCode="$OPTARG" ;; 
+            h ) usage; exit 0 ;; 
+#            ? ) abend '89491' "Invalid option" ;; 
+      esac
+done
+
+if [ $f -eq 0 ]; then
+      [ $b -eq 1 ] || abend '99803' 'incompatible options -b and -f'
+      [ $s -eq 1 ] || abend '84834' 'incompatible options -s and -f'
+      [ "$ErrCode" = '' ] && abend '02747' 'missing argument to option -f'
+fi
+
+if [ $b -eq 0 ]; then      
+
+[ $a -eq 0 ] || abend '91404' 'missing option -a'
+[ "$App" != '' ] || abend '52233' 'missing argument to option -a'
+
+[ $c -eq 0 ] || abend '41459' 'missing option -c'
+[ "$Caption" = '' ] && abend '60500' 'missing argument to option -c'
+
+[ $q -eq 0 ] || abend '35676' 'missing option -q'
+[ "$Question" = '' ] && abend '33446' 'missing argument to option -q'
+
+sch-dlg-question \
+      -a 'Schooner' -c 'Local Backup' \
+      -q "Do you want to backup $BakName now?"        
+                   
+[ $? -eq 0 ] || return 1
+
+Err="$(sch-file-exists -s "$User_Local_Backup_Dir" -rwd)"
+[ "$?" = 0 ] || { umask 0022; mkdir -p "$User_Local_Backup_Dir"; }
+if [ "$?" != 0 ]; then
+      umask 0022
+      abend '87633' 'failed to create backup folder'
+else
+      umask 0022
+fi
+
+Err="$(sch-file-exists -s "$SourceDir" -rd)"
+if [ "$?" != 0 ]; then
+      abend '09349' "$BakName backup can't use source folder ($SourceDir) it is $Err"
+fi
+
+Err="$(sch-file-exists -s "$SubDir" -rwd)"
+[ "$?" = 0 ] || { umask 0022; mkdir -p "$SubDir"; }
+if [ "$?" != 0 ]; then
+      umask 0022
+      abend '27433' "$BakName backup failed to create backup sub-folder ($SubDir) it is $Err"
+else
+      umask 0022
+fi
+
+rsync -avzq "$SourceDir" "$BakFileSpec" # TODO v and s options contradictory?
+
+# Check that the rsync worked
+Err="$(sch-file-exists -s "$BakFileSpec" -rw)"
+if [ "$?" != 0 ]; then
+      abend '82340' "$BakName backup failed to create backup folder $BakFileSpec it is $Err"
+fi
+
+# TODO Shell Check says should use find instead of ls 'to better
+# handle non-alphanumeric filenames
+if [ $(ls -A "$SubDir" |wc -l) -gt "$MaxCopies" ]; then
+      cd "$SubDir" && rm -Rf "$(ls  | head -n 1)" #-B ignore '~' suffix ie backups
+fi
+
+# Remove older duplicates of backed-up files. Deliberately keep any directories
+# left empty because removing them would mess up the rotation mechanism. Result of
+# this command is to always add a new directory but only populate it with files
+# that have changed since last backup.
+fdupes -rqdN "$User_Local_Backup_Dir" #r=recursive q=quiet d=delete N=noprompt 
+
+sch-dlg-notify -c 'Local Backup' -n "Backed up $BakName $(date)"
+exit 0
+

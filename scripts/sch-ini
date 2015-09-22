@@ -1,0 +1,127 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-ini
+# Created:   14/07/2015
+# Purpose:   interface to 'ini' type configuration files
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+{
+cat << EOF
+NAME
+       sch-ini - interface to 'ini' type configuration files, with special
+                       provision for user config file
+
+SYNOPSIS
+       sch-ini [OPTION]... [ARG]...
+
+DESCRIPTION
+       -o  <operation>      'set' or 'get' 
+
+       -f  <filespec>        ini file
+
+       -s  <section-name>
+              
+       -k  <key-name>
+              
+       -v  <value>
+       
+       -h                    display usage
+
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       stdout putonstdout
+       
+USAGE
+       usage+examples1
+       
+       usage+examples2
+
+EOF
+}
+
+########## initializations #####################################################
+o='false';f='false';s='false';k='false';v='false';
+FileSpec=''; Section=''; Key=''; Value=''; FetchedValue=''
+
+########## functions ###########################################################
+abend() { # $1=error-code $2=optional-error-message 
+	sch-error -c "$1" -m "$2"; exit 1
+}
+
+get_value() { #$1:filespec $2:section $3:key
+      local Prob; local Result
+	Prob=$(sch-file-exists -s "$1" -rf)
+	[ "$?" = 0 ] || abend '55619' "unable to read from file $1 - it is $Prob"
+	FetchedValue=$(sch-crudini --get "$1" "$2" "$3") # "return" by global var
+      [ $? = 0 ] || abend '88421' "crudini unable to read from file $1"
+}
+
+set_value() { #$1:filespec $2:section $3:key $4:value
+      local Prob
+      touch  "$1" # create if doesn't already exist
+	Prob=$(sch-file-exists -s "$1" -rwf)
+	[ "$?" = 0 ] || abend '23591' "unable to write to $1 - it is $Prob"
+ 	sch-crudini --set "$1" "$2" "$3" "$4"
+	[ "$?" = 0 ] || abend '88421' "crudini unable to write to $1"
+}
+
+########## main ################################################################
+while getopts "o:f:s:k:v:h" Option
+do
+	case "$Option" in
+	      o ) o='true'; Operation="$OPTARG" ;;
+		f ) f='true'; FileSpec="$OPTARG" ;;
+		s ) s='true'; Section="$OPTARG";;
+		k ) k='true'; Key="$OPTARG";; 
+		v ) v='true'; Value="$OPTARG";;
+		h ) usage; exit 0 ;;
+		* ) abend '35765' "invalid or missing options" ;;     			   
+	esac
+done
+
+[ "$o" = 'false' ] &&  abend '67543' 'missing option -o'
+[ "$Operation" = '' ] && abend '16233' 'missing argument to option -o'
+
+if [ "$Operation" != 'get' ] || [ "$Operation" != 'set' ]; then
+      abend '29066' 'invalid argument to option -o'
+fi
+
+[ "$f" = 'false' ] &&  abend '74192' 'missing option -f'
+[ "$FileSpec" = '' ] && abend '82698' 'missing argument to option -f'
+[ "$s" = 'false' ] &&  abend '93142' 'missing option -s'
+[ "$Section" = '' ] && abend '86828' 'missing argument to option -s'
+[ "$k" = 'false' ] &&  abend '76501' 'missing option -k'
+[ "$Key" = '' ] && abend '07891' 'missing argument to option -k'
+
+if [ "$Operation" = 'set' ]; then
+      [ "$v" = 'false' ] &&  abend '86526' 'missing option -v'
+      [ "$Operation" = '' ] && abend '78956' 'missing argument to option -v'
+      set_value "$FileSpec" "$Section" "$Key" "$Value"
+else 
+      get_value "$FileSpec" "$Section" "$Key"
+      echo "$FetchedValue"
+fi
+
+exit 0
+      
+ 
+
+

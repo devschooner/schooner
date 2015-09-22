@@ -1,0 +1,49 @@
+#!/bin/dash #shebang is redundant but triggers syntax colouring
+#=======================================================================
+# File:      sch-functions
+# Created:   04/08/2015
+# Purpose:   constants for Schooner scripts
+# Copyright: © author
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-constants
+
+abend() { sch-error -c "$1" -m "$2";  exit 9; } # $1=error-code $2=error-msg
+
+exit_stat() { # $1=ccommand-name $2=exit-status-of-some-command $3=error-code 
+      [ $2 -eq 9 ] && abend "$3" "script $1 failed" 
+      return $2 
+}
+            
+
+
+
+prompt_y_n() { #$1=message
+      local Prompt; local Response; Response=''
+
+      if [ "$1" = '' ]; then
+            Prompt='Please type y or n: '
+      else
+            Prompt="$1 - please type y or n:"
+      fi
+
+      while [ "$Response" != 'y' ] && [ "$Response" != 'n' ] ; do
+            echo "$Prompt"; read Response
+      done
+
+      [ "$Response" = 'y' ] || return 1; return 0
+}

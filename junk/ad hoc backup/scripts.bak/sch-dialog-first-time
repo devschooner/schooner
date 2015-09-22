@@ -1,0 +1,98 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-first-time
+# Created:   16/07/2015
+# Purpose:   dialog to be shown first time an app runs, giving user 
+#            options to continue, cancel or view specific help for app 
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+      sch-dialog-first-time - to be shown first time an app runs. gives user 
+      options to continue, cancel or view specific help for app
+
+SYNOPSIS
+      sch-dialog-first-time [OPTION] [ARG]
+      
+      -a <app-name>
+      
+      -i <icon>
+      
+      -s <app-summary> 
+      
+      -f <help-file>
+      
+      -h                     display usage
+      
+      -a, s, f are all required
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if 'Continue' pressed or -h option used
+      1      if 'Cancel' pressed
+      2      if 'Help' presssed
+      9      if abend called
+
+USAGE
+      sch-dialog-first-time -a 'MyApp' -s 'what it does' '102' -k 'mykey' -h 'myapphelp'
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 9; } # $1=error-code $2=error-descript
+
+App=''; Summary=''; Icon='dialog-information'; HelpFile=''
+a='false'; s='false'; i='false'; f='false'
+
+while getopts ":a:i:s:f:h" Option
+do
+      case "$Option" in
+            a ) a='true'; App="$OPTARG";;
+            i ) i='true'; Icon="$OPTARG";;
+            s ) s='true'; Summary="$OPTARG";;
+            f ) f='true'; HelpFile="$OPTARG";;
+            h ) usage; exit 0 ;;
+            ? ) abend '87200' "Invalid option" ;;                   
+      esac
+done
+
+[ "$a" = 'false' ] && abend '52755' "Missing option -a (app-name)"
+[ "$App" = '' ] && abend '85572' "Missing arg to opt -a (app-name)"
+
+[ "$s" = 'false' ] && abend '60412' "Missing option -s (app-summary)"
+[ "$Summary" = '' ] && abend '74551' "Missing arg to opt -s (app-summary)"
+
+[ "$f" = 'false' ] && abend '20343' "Missing option -f (help-file)"
+[ "$HelpFile" = '' ] && abend '60409' "Missing arg to opt -f (help-file)"
+
+kdialog \
+      --yesnocancel "$(echo $Summary |fmt -50 -u)" \
+      --yes-label 'Continue' \
+      --no-label 'Cancel' \
+      --cancel-label 'Help' \
+      --title "$App" \
+      --icon "$Icon" \
+      --caption 'First Time Information' \
+      --dontagain "$HOME/.schooner/user-conf:$App-show-first-time-info"
+exit $? 
+
+
+

@@ -1,0 +1,387 @@
+﻿#!/bin/dash
+# File:      sch-convert-netrunner
+# Created:   22/09/2014
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.com
+# Copyright: ©
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+echo 'script blocked'; exit 9
+. /usr/bin/sch-include; die_if_not_root
+
+i_deb() { # $2=package $1=error-code
+      apt-get --yes install "$1" || die "$1" "failed to install deb $2"
+}
+
+i_pip() { # $2=package $1=error-code
+      pip install "$1" || die "$1" "failed to install pip $2"
+}
+
+rm_deb() { # $2=repo $1=error-code
+      apt-get --yes --purge remove "$1" || die "$1" "failed to uninstall deb $2"
+}
+
+i_repo() { # $2=package $1=error-code
+      add-apt-repository --yes  "ppa:$1" || die "$1" "failed to add repo $2"
+}
+
+strip_netrunner() {
+# remove stuff we won't want on the schooner system
+	rm_deb 	gnome-chess '64518'
+	rm_deb 	gnudoq '33380'
+	rm_deb 	karbon '75850'
+	rm_deb	yakuake '76061'
+	rm_deb 	qmmp '90141'
+	rm_deb 	krdc '785674'
+	rm_deb 	kdenlive '46545'
+	rm_deb	telnet '46475'
+	rm_deb	konqueror '90865'
+	rm_deb	steam '65645'
+	rm_deb	ksnake '65444'
+	rm_deb	steam '65645'
+	rm_deb	steam '65995'
+	rm_deb	libreoffice '09087'
+	rm_deb	gufw '75034' # will install ufw-kde (ie kcm module) later
+	return 0
+}
+
+add_infrastructure() {
+# add stuff needed for other installations
+	i_deb python-pip '45796'
+	i_deb python3-pip '12885'
+	i_deb gdebi-core '84570'
+	i_deb ppa-purge '34027'
+	i_pip iniparse '74992'
+	return 0
+}
+
+add_ppas() {
+
+      while read Line
+            do
+                  is_comment "$Line" && continue
+                  update_script "$Line"
+            done <"$List_Files/sch-script-list.txt"
+	i_repo libreoffice/ppa  '09897'
+	i_repo inkscape.dev/stable '57685'
+	#i_repo samrog131/ppa '53986'
+	#won't work currently - think problem is dependency on libx265-31
+	#which has been updated to libx265-32
+	i_repo mc3man/trusty-media '99753' #for vlc
+	i_repo recoll-backports/recoll-1.15-on '49657'
+	i_repo dlynch3/ppa '49687'
+	i_repo cesar-crea-si/eviacam '88786'
+	#only added this to get latest entangle and rapid photo downloader - remeove when possible
+	#because it drags in stuff it shouldn't
+	i_repo anton+/photo-video-apps '09987'
+	return 0
+}
+
+add_misc_packages() {
+	# games
+	i_deb kreversi '90897'
+	i_deb kshisen '98986'
+	i_deb kfourinline '90823'
+	i_deb ksudoku '15645'
+	i_deb kapman '15645'
+	i_deb kblocks '78653'
+	i_deb kdgames-card-data-xtra '89768'
+	i_deb kiriki '37673'
+	i_deb kollision '99897'
+	i_deb kubrick '39887'
+	i_deb lskat '78675'
+	i_deb pairs '67566'
+	i_deb picmi '33654'
+	i_deb ksudoku '18793'
+	i_deb ktuberling '75883'
+	i_deb ksquares  '99465'
+	i_deb blinken  '99675'
+	i_deb kblackbox '87767'
+	i_deb kgoldrunner '67450'
+	i_deb kigo '97745'
+	i_deb kjumpingcube '99541'
+	i_deb klickety '89654'
+	i_deb klines '89467'
+	i_deb palapeli '09897'
+	i_deb ktnef  '09097' # microsoft srvr mail format viewer - okular can't do tnef
+
+	# accessibility
+	i_deb fonts-opendyslexic  '90856'
+	i_deb florence '44543'
+	i_deb eviacam '09087'
+	i_deb dasher '89878'
+	i_deb rsibreak '55467'
+	i_deb plasma-widget-kbstate '88776'
+
+	# thumbnailers from main repos
+	i_deb kde-thumbnailer-deb  '21102'
+	i_deb kde-thumbnailer-openoffice  '90823'
+	i_deb kdegraphics-mobipocket '40771'
+	i_deb kdegraphics-thumbnailers '99945'
+	i_deb kde-thumbnailer-apk '62831'
+
+	# thumbnailers
+	i_deb kde-thumbnailer-epub '27833'
+	i_deb kde-thumbnailer-audiothumbs '55988'
+	i_deb kde-thumbnailer-cb7thumbnails '83564'
+	i_deb kde-thumbnailer-chm '00911'
+	i_deb kde-thumbnailer-fb2 '51364'
+	i_deb kde-thumbnailer-moviethumbs '30144'
+	i_deb ooo-thumbnailer '30144'
+	i_deb kde-thumbnailer-wmf '30144'
+
+#	# thumbnailers from local deb TODO check out these they fail
+	#gdebi -n $BF/kde-thumbnailer-blender_0.3kayosiiiubuntu1_i386.deb '06863'
+	##gdebi -n $BF/kde-thumbnailer-wings3d_0.2kayosiii5ubuntu1_i386.deb '06863'
+
+	# deja-dup
+	i_deb deja-dup '86941'
+	i_deb deja-dup-backend-s3 '47582'
+	i_deb deja-dup-backend-cloudfiles '02684'
+	i_deb deja-dup-backend-gvfs '99141'
+
+	# K3B helpers
+	i_deb normalize-audio '22548'
+	i_deb sox '34975'
+	i_deb transcode '42870'
+	#need to add emovix
+
+	# graphics multimedia and photo
+	i_deb vlc-browser-plugin '78676'
+	i_deb openshot '87765'
+	i_deb tupi '54398'
+	i_deb gnome-color-manager '88785'
+	i_deb inkscape '63678'
+	i_deb audacity '67546'
+	i_deb digikam '93474'
+	i_deb entangle '09034'
+
+	# misc
+	i_deb par '37151' #advanced version of fmt
+	i_deb fdupes '09022' #remove dupe files - needed by sch-includes
+	i_deb wkhtmltopdf  '99867' #convert html to pdf - for service menus
+	i_deb jpegoptim  '00967' #jpeg optimiser
+	#i_deb pngquant  '88756' #png optimiser - currently crashes - debian bug #742451
+	i_deb pngnq  '35422' #png optimiser - alternative to pngquant
+	i_deb notify-osd '34593' #dolphin checksum service menu needs it
+	# TODO could these and the libnotify4 package have overlaps/redundancy?
+	i_deb filelight '04522'
+	i_deb speedcrunch '87345'
+	i_deb sqlite3 '82156'
+	i_deb plasma-addons '46721'
+	i_deb kde-service-menu-fuseiso '31319'
+	i_deb kde-service-menu-kim4 '30064' #notify-osd required by dolphin md5 service menu
+	#i_deb libmygpo-qt1 '15691'
+	#i_deb xclip '92641'
+	i_deb kde-config-cddb '32346'
+	#i_deb adobe-flash-properties-kde '82693'# removed as has dependencies that can't be satisfied
+	i_deb ktouch '85028'
+	#i_deb kubuntu-driver-manager '90548'
+	i_deb kcharselect '60783'
+	i_deb qdbus '87490'
+	i_deb qdbus-qt5 '60783'
+	i_deb kdeconnect '91644'
+	i_deb choqok '76746'
+	i_deb krename '23133'
+	i_deb declarative-plasmoids '93355'
+	i_deb thunderbird-plasma '93355'
+	i_deb plasma-runners-addons '91644'
+
+	#imagemagick graphicsmagick and helpers
+	i_deb graphicsmagick  '90785'
+	i_deb dcraw '09895'
+	i_deb html2ps '38746'
+
+	# gimp helpers
+	i_deb gimp-plugin-registry '09897'
+	i_deb gimp-gmic '09857'
+	i_deb gimp-help-en '09897'
+	i_deb gimp-data-extras '08786'
+	i_deb gimp-lensfun '98976'
+	i_deb gimp-ufraw '97867'
+	i_deb pandora '90897'
+	i_deb gimp-beautify '00956'
+
+	# libreoffice helpers
+	i_deb libreoffice-style-oxygen '06669'
+	i_deb browser-plugin-libreoffice '02359'
+	i_deb myspell-en-gb '43849' #not sure if for libreoffice or something else
+	i_deb libreoffice-templates '06669'
+
+	# recoll and helpers
+	i_deb recoll '88843'
+	i_deb antiword '68556'
+	i_deb python-chm '17549'
+	i_deb pstotext '43888'
+	i_deb unrtf '48714'
+	i_deb untex '88871'
+	i_deb djvulibre-bin '12039'
+	i_deb python-mutagen '32936'
+	i_deb libimage-exiftool-perl '37453'
+	# TODO check status of libvw-1.2-4 recommended for recoll
+	i_pip epub '80230'
+	i_pip rarfile '13547'
+	i_pip icalendar '21092'
+
+	# Security
+	i_deb ufw '99044'
+	i_deb ufw-kde '92425'
+	i_deb apg '34234' #advanced password generator
+
+	# fonts
+	i_deb fonts-linuxlibertine '90876'
+
+	return 0
+}
+
+
+add_dev_packages() {
+# install stuff required for development, but not production, system
+	i_deb sqlitebrowser '44387'
+	#may need more kate packages
+	i_deb libghc-highlighting-kate-dev '11962'
+	i_deb powertop '68004'
+	#i_deb bootchart '60034'
+	#i_deb pybootchartgui '71788'
+	#i_deb vim '55075'
+	#i_deb vim-gui-common '67816'
+	i_deb bashdb '77232'
+	# devscripts to get checkbashisms bash portability checker
+	i_deb devscripts '17984'
+	i_deb plasmate '28716'
+	# debtree for visualizing deb dependencies
+	#i_deb debtree		  '61840'
+	#qt4-dev-tools for qdbusviewer
+	i_deb qt4-dev-tools '66145'
+        i_deb git '57566'
+
+	return 0
+}
+
+add_remastersys() {
+# BlackLabImager installation
+	# remastersys dependencies - need to check which i can remove
+	i_deb memtest86+ '90094'
+	i_deb coreutils '83110'
+	i_deb  dialog '56306'
+	i_deb  mkisofs '88343'
+	i_deb  genisoimage '33743'
+	i_deb  findutils '18318'
+	i_deb  bash '35035'
+	i_deb  passwd '21688'
+	i_deb  sed '46026'
+	i_deb  squashfs-tools '21503'
+	i_deb  casper '81958'
+	i_deb  rsync '92855'
+	i_deb  mount  '31306'
+	i_deb  eject '47778'
+	i_deb  libdebian-installer4 '35298'
+	i_deb  os-prober '67429'
+	i_deb  ubiquity-frontend-debconf '69311'
+	i_deb  user-setup '84076'
+	# discover1 not found in any repos - seems not to be missed!
+	#i_deb  discover1 '53246'
+	i_deb  discover '71826'
+	i_deb  laptop-detect '62483'
+	i_deb  syslinux '68970'
+	i_deb  util-linux '92496'
+	i_deb  xresprobe '96087'
+
+	cp -R "$BF"/remastersys/blacklabimager /etc '05596'
+	cp -f "$BF"/remastersys/blacklabimager.conf	/etc  '44296'
+	cp -f "$BF"/remastersys/BlackLabImager /usr/bin '58240'
+	chmod u+x /usr/bin/BlackLabImager '49897'
+
+	return 0
+}
+
+modify_file_creation_templates() {
+      return 0
+}
+
+
+modify_recoll() {
+	cp -f "$BF"/recoll/mimeconf \
+	/usr/share/recoll/examples  '06642'
+
+	cp -f "$BF"/recoll/mimemap \
+	/usr/share/recoll/examples '22754'
+
+	cp -f "$BF"/recoll/mimeview \
+	/usr/share/recoll/examples '36348'
+
+	cp -f "$BF"/recoll/recoll.conf \
+	/usr/share/recoll/examples '84415'
+
+	cp -f "$BF"/recoll/recoll-oxy/* \
+	/usr/share/recoll/images '42396'
+}
+
+modify_graphics() {
+	# Wallpapers
+	cp -Rf "$BF"/wallpapers/* \
+	/usr/share/wallpapers '95948'
+
+	# User login icons
+	cp -Rf "$BF"/login-icons/* \
+	/usr/share/kde4/apps/kdm/pics/users '00562'
+
+	# Replace Netrunner fancy Konsole Background with plain black
+	cp -f "$BF"/black-background.jpg \
+	/usr/share/netrunner/konsole.jpg '04928'
+
+	# Use same black background for various purposes
+	cp -f "$BF"/black-background.jpg \
+	/usr/share/schooner/black-background.jpg '84673'
+}
+
+create_usr_share_schooner() {
+	rm -rf /usr/share/schooner
+
+	cp -Rf "$BF"/schooner-filetree \
+	/usr/share/schooner '09425'
+}
+
+create_skel() {
+	prompt_y_n "do you want to overwrite /etc/skel now?"
+	if [[ $? = 0 ]]; then
+		sudo rm -Rf /etc/skel
+		sudo cp -Rf "$BF"/current-skel /etc/skel
+		sudo chmod -R a+r /etc/skel
+	fi
+}
+
+# Need schooner directory first because error log will be written there
+create_usr_share_schooner
+
+apt-get update
+strip_netrunner
+add_ppas
+add_remastersys
+add_infrastructure
+add_misc_packages
+#add_dev_packages
+apt-get-update
+apt-get --yes autoremove
+apt-get --yes clean
+
+modify_graphics
+modify_file_creation_templates
+modify_recoll
+sch-setup-firewall
+#create_skel
+
+
+

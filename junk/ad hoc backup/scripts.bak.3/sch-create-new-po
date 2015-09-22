@@ -1,0 +1,17 @@
+#!/bin/dash
+
+
+xgettext \
+      -L Shell \
+      -o sch-scripts.new.po \
+      sch-include \
+      sch-convert-netrunner \
+      sch-file-exists \
+      sch-mini-backup \
+      sch-userconfig \
+      sch-dlg-notify \
+      sch-dlg-prompt
+
+#msgfmt -o sch-scripts.sh.mo sch-scripts.po
+#sudo cp sch-scripts.sh.mo /usr/share/locale/en_GB/LC_MESSAGES
+

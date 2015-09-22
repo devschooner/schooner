@@ -1,0 +1,102 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-error
+# Created:   16/07/2015
+# Purpose:   see usage function below
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-functions; $ABORT_IF_ROOT
+#=======================================================================
+
+usage()
+{
+cat << EOF
+NAME
+      $THIS_SCRIPT - handle an error, locating source file and line from error code
+
+SYNOPSIS
+      $THIS_SCRIPT [OPTION] [ARG]
+      
+      -c <error-code>        unique 5-char error code embedded in calling script
+      
+      -m <error-message>     message describing error
+      
+      -h                     display usage
+      
+      -c is required unless -h is used
+      -m is optional - if not used default message is 'command failed'
+      if -h is used, all other options are ignored
+
+DESCRIPTION
+      if $THIS_SCRIPT itself encounters an internal error, the log entry passed 
+      from the calling routine will be replaced by one referring to $THIS_SCRIPT's 
+      internal error. Because line number can't be determined without $THIS_SCRIPT
+      recursing or messy code.
+
+EXIT STATUS
+      0      if OK pressed or if -h used
+      1      if failed for any reason
+
+USAGE
+      $THIS_SCRIPT -c '12345' -m "it's all gone horribly wrong..."
+EOF
+}
+
+valid_err_code() { # $1=err-code
+      local ErrCode="$1"
+      [ ${#ErrCode} -eq 5 ] || return 1 # must be 5 chars
+
+      case ${ErrCode#} in # must be numeric
+            *[!0-9]* ) return 1 ;;
+            * ) return 0 ;;
+      esac
+}
+
+Src='??'; Line='??'; ErrCode=''; ErrMsg='command failed'; c='false'
+
+while getopts ":c:m:h" Option
+do
+      case "$Option" in
+            c ) c='true'; ErrCode="$OPTARG" ;;
+            m ) ErrMsg="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+      esac
+done
+
+if [ "$c" = 'false' ]; then
+      sch-dlg-error -r "$THIS_SCRIPT" -l '89' -c '14790' -m 'missing option or argument -c'
+      exit 9
+fi
+
+valid_err_code "$ErrCode"
+if [ "$?" != '0' ]; then
+      sch-dlg-error -r "$THIS_SCRIPT" -l '94' -c '52214' -m 'invalid argument to option -c'
+      exit 9
+fi
+
+# grep for the calling routine in /usr/bin. To speed things up, assume
+# there are no duplicate error codes in scripts so the first one found is
+# the correct one. TODO add handling for case when error code not found by grep
+Src="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f1)"
+Src=$(basename "$Src")
+Line="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f2)" 
+
+sch-userlog -e "$Src | line $Line | $ErrCode - $ErrMsg" 
+sch-dlg-error -r "$Src" -l "$Line" -c "$ErrCode" -m "$ErrMsg"
+
+exit 0

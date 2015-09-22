@@ -1,0 +1,130 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2015-09-01 00:42+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: sch-include:66
+msgid "command_failed"
+msgstr "Command failed"
+
+#: sch-include:69 sch-include:72 sch-include:117
+msgid "bad_param"
+msgstr "Missing or invalid parameter"
+
+#: sch-include:83
+msgid "app_stopped_at_line"
+msgstr ""
+
+#: sch-include:84
+msgid "cause_was_error_code_error_msg"
+msgstr ""
+
+#: sch-include:85
+msgid "msg_copied_to_clipboard"
+msgstr "This message has been copied to the clipboard"
+
+#: sch-include:94 sch-mini-backup:87 sch-mini-backup:117
+msgid "schooner"
+msgstr "Schooner"
+
+#: sch-include:95
+msgid "error_message"
+msgstr ""
+
+#: sch-include:103
+msgid "bad_opt"
+msgstr ""
+
+#: sch-include:111
+msgid "incompatible_opts"
+msgstr "Command line options $Cmd_Line_Opt and $Cmd_Line_Opt2 are incompatible"
+
+#: sch-file-exists:67
+msgid "status_non_existent"
+msgstr ""
+
+#: sch-file-exists:73
+msgid "status_non_readable"
+msgstr ""
+
+#: sch-file-exists:77
+msgid "status_non_writable"
+msgstr ""
+
+#: sch-file-exists:81
+msgid "status_non_executable"
+msgstr ""
+
+#: sch-file-exists:85
+msgid "status_non_directory"
+msgstr ""
+
+#: sch-file-exists:89
+msgid "status_non_symbolic_link"
+msgstr ""
+
+#: sch-file-exists:93
+msgid "status_non_regular_file"
+msgstr ""
+
+#: sch-file-exists:97
+msgid "status_non_empty"
+msgstr ""
+
+#: sch-file-exists:101
+msgid "status_not_owned_by_this_uid"
+msgstr ""
+
+#: sch-file-exists:105
+msgid "status_not_owned_by_this_gid"
+msgstr ""
+
+#: sch-file-exists:109
+msgid "status_not_specified_mimetype"
+msgstr ""
+
+#: sch-mini-backup:42 sch-mini-backup:56 sch-mini-backup:66
+msgid "mini_backup_folder_creation_failed"
+msgstr "Failed to make backup \"$BakName\". Could not create backup folder $SubDir. Error was: \"$Err\"."
+
+#: sch-mini-backup:49 sch-mini-backup:128
+msgid "mini_backup_failed"
+msgstr "Failed to make backup \"$BakName\". $SourceDir was $Err."
+
+#: sch-mini-backup:88 sch-mini-backup:118 sch-mini-backup:125
+msgid "mini_backup"
+msgstr "Mini Backup"
+
+#: sch-mini-backup:89
+msgid "enter_search_text"
+msgstr "Enter the text you want to search for"
+
+#: sch-mini-backup:119
+msgid "confirm_want_to_mini_backup"
+msgstr ""
+
+#: sch-mini-backup:126
+msgid "mini_backup_completed"
+msgstr "MiniBackup completed"
+
+#: sch-userconfig:34
+msgid "fail_reset_user_config"
+msgstr "Failed to reset user configuration file $User_Conf"
+
+#: sch-userconfig:61
+msgid "fail_write_user_config"
+msgstr "Failed to write to user configuration file $User_Conf"

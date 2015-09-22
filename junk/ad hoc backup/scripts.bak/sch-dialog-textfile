@@ -1,0 +1,117 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-textfile
+# Created:   16/07/2015
+# Purpose:   show contents of textfile in dialog with OK button to close 
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+ 
+usage()
+{
+cat << EOF
+NAME
+      sch-dilog-textfile - dialog to display contents of textfile. OK button 
+      closes it.
+
+SYNOPSIS
+      sch-dialog-textfile [OPTION] [ARG]
+      
+      -f <textfile to be displayed>
+      
+      -a <app-name> 
+      
+      -c <caption>
+      
+      -i <icon>
+
+      -h <height in pixels>
+
+      -w <width in pixels>
+      
+      -f, a, c, i are required
+      -h, w can be optionally used to override the default window size
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if OK
+      1      if unable to display file or failed for any other reason
+
+USAGE
+      sch-dialog-textfile -f '/my/file.txt' -a 'MyApp' -c 'doing something' -i 'myicon'
+
+EOF
+}
+
+abend()
+{
+      local ErrorCode; ErrorCode=$1
+      local ErrorMsg; ErrorMsg=$2
+      [ "$ErrorMsg" != "" ] || ErrorMsg="Command failed" 
+      sch-log -m "$ErrorMsg" -e "$ErrorCode" 
+      exit 1 
+}
+
+TxtFile=''; AppName=''; Caption=''; Icon=''; Width=''; Height=''
+f='false'; a='false'; c='false'; i='false'; w='false'; h='false'
+
+while getopts "f:a:c:i:w:h:" Option
+do
+      case "$Option" in
+            f ) f='true'; TxtFile="$OPTARG";;
+            a ) a='true'; AppName="$OPTARG";;
+            c ) c='true'; Caption="$OPTARG";;
+            i ) i='true'; Icon="$OPTARG";;
+            w ) w='true'; Width="$OPTARG";;
+            h ) h='true'; Height="$OPTARG";; 
+            * ) abend '17636' "Invalid option" ;;                   
+      esac
+done
+
+[ "$f" = 'false' ] && abend '78090' "Missing option -f (txt-file )"
+[ "$TxtFile" = '' ] && abend '74962' "Missing arg to opt -f (txt-file)"
+Problem=$(sch-file-exists -s "$TxtFile" -r -m 'text/plain')
+[ "$?" = '0' ] || abend '25223' "Unable to read file ($TxtFile) - it is $Problem"
+
+[ "$a" = 'false' ] && abend '08688' "Missing option -a (app-name)"
+[ "$AppName" = '' ] && abend '63794' "Missing arg to opt -a (app-name)"
+
+[ "$c" = 'false' ] && abend '90848' "Missing option -c (caption)"
+[ "$Caption" = '' ] && abend '18773' "Missing arg to opt -c (caption)"
+
+[ "$i" = 'false' ] && abend '58020' "Missing option -i (icon)"
+[ "$Icon" = '' ] && abend '28357' "Missing arg to opt -i (icon)"
+
+# TODO why these no work?
+#[ "$Width" =~ ^-?[0-9]+$ ] && abend '00227' "Arg to -w option is ($Width) - should be an integer"
+#[ "$Height" =~ ^-?[0-9]+$ ] && abend '98998' "Arg to -h option is ($Height) - should be an integer"
+
+# TODO need reasonableness check  
+
+# defaults
+[ "$Width" = '' ] && Width='500' 
+[ "$Height" = '' ] && Height='700'
+
+kdialog \
+      --textbox "$TxtFile" "$Width"  "$Height" \
+      --title "$AppName" \
+      --caption "$Caption" \
+      --icon "$Icon"
+
+exit $?
+

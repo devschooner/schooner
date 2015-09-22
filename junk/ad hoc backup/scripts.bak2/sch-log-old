@@ -1,0 +1,156 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-log
+# Created:   13/07/2015
+# Purpose:   Interface to schooner user logfile.
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+       sch-log - interface to schooner user logfile
+
+SYNOPSIS
+       sch-log [OPTION]... [ARG]...
+
+DESCRIPTION
+
+      -m  <error-message>       log an error 
+              
+      -c  <comment>             log a comment 
+              
+      -e  <error-code>          5-digit unique error ref in calling routine
+      
+      -h                        help: display usage.
+       
+      valid combinations of options are:-
+      -m and -e
+      -c only
+      -h (any other options combined with -h will be ignored)
+      
+NOTES
+      when -m option is used, sch-log is updated with a line in this format:
+      
+      
+      If sch-log, when called to log an error, encounters an internal error, it 
+      will replace <error-message> or <comment> with its own error message. It 
+      will also replace <error-code> with an error code referring to the 
+      internal error message. In this event stuff may be missing from the log 
+      entry, dependent on what the error condition was.
+       
+EXIT STATUS
+      0:      if made log entry
+      1:      if failed to make log entry   
+      stdout: log entry
+       
+USAGE
+      sch-log -m 'oops just made an error' -e '16734' 
+       
+      sch-log -c 'just a meaningless comment'
+
+EOF
+}
+
+########## initializations #####################################################
+ 
+#
+ErrCode=''; ErrMsg=''
+m='false'; c='false'; e='false'
+readonly LogFile="$HOME/.schooner/log.txt"
+readonly Date=$(date "+%Y-%m-%d")
+readonly Time=$(date "+%H:%M:%S")
+
+########## functions ###########################################################
+
+log_error() { 
+      # grep for the calling routine in /usr/bin. To speed things up, assume
+      # there are no duplicate error codes in scripts so the first one found is
+      # the correct.
+      
+      # TODO add handling for case when error code not found by grep
+      
+      local Caller; local LineNo; local ErrMsg; local FileName
+      Caller="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f1)"
+      LineNo="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f2)"
+      FileName=$(basename "$Caller")
+      LogEntry="$Date $Time | $FileName | line $LineNo | $ErrMsg"   
+      sch-dialog-error -r "$FileName" -l "$LineNo" -c "$ErrCode" -m "$ErrMsg" 
+}
+
+log_comment() {
+      echo "$Date $Time | $ErrMsg" |tee -a "$LogFile"
+}
+
+abend() {
+      # overwrite the error that sch-log was called to log, with the error that 
+      # we just encountered in sch-log. Same for error-code but keep original 
+      # value of caller so we can track down the calling routine. Depending on
+      # what the error was, stuff may get omitted from log entry.
+      ErrCode="$1"; ErrMsg="sch-log: $2"; log_error; exit 1; 
+}
+
+########## main ################################################################
+
+# we don't want root to write to the log so just show error to user
+# Line number is hard-coded and may need to be adjusted.
+[ "$(whoami)" = 'root' ] && sch-dialog-error -r 'sch-log' -l '112' -c '10357' -m 'cannot be run by root' 
+
+sch-file-exists -s "$LogFile" -rwf # check writable log exists...
+if [ "$?" != 0 ]; then  
+      touch "$LogFile" # else try to create it
+      Problem=$(sch-file-exists -s "$LogFile" -rwf)
+      # no log to write to so just echo to stdout
+      [ "$?" = 0 ] || { echo "sch-log: cannot write to log ($LogFile) because it is $Problem"; exit 1; }
+fi
+
+while getopts "m:c:e:h" Option
+do
+      case "$Option" in		
+          m ) m='true'; ErrMsg="$OPTARG" ;;
+          c ) c='true'; ErrMsg="$OPTARG" ;;
+          e ) e='true'; ErrCode="$OPTARG" ;;
+          h ) usage; exit 0 ;;
+          * ) abend '34346' "invalid or missing options" ;;			   
+      esac
+done
+
+if [ "$m" = 'false' ] && [ "$c" = 'false' ]; then
+      abend '84140' "either -m or -c option required"
+fi
+
+if [ "$m" = 'true' ] && [ "$c" = 'true' ]; then
+      abend '17211' "-m and -c options cannot be combined"
+fi
+
+if [ "$m" = 'true' ]; then
+      [ "$ErrMsg" != '' ] || abend '16742'  "missing arg to -m option (error-message)"
+      [ "$e" = 'true' ] || abend '55085'  "missing -e option"
+      [ "$ErrCode" != '' ] || abend '06419'  "missing arg to -e option (error-code)" 
+      [ ${#ErrCode} -eq 5 ] || abend '53907' "invalid arg to -e option (%ErrCode)"
+      log_error
+elif [ "$c" = 'true' ]; then
+      [ "$ErrMsg" != '' ] || abend '54396' "missing arg to -c option (comment)"
+      [ "$m" = 'false' ] || abend '57731' "-m and -c options cannot be combined"
+      [ "$ErrMsg" = '' ] && abend '20951' "missing arg to -c option (comment)"
+      log_comment
+else
+      abend '86865' "unknown error"     
+fi
+
+ 

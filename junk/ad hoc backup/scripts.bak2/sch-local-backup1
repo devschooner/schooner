@@ -1,0 +1,183 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-local-backup
+# Created:   21/07/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+ 
+
+#=initialization========================================================
+
+#=functions=============================================================
+
+usage()
+{
+cat << EOF
+NAME
+       sch-local-backup - Provide consistent mechanism for user's short-term backups
+
+SYNOPSIS
+       sch-local-backup [OPTION]... [FILE]...
+
+DESCRIPTION
+       -h                     show usage
+
+      -s     <source-directory>
+                             filespec of "source" file or dir to backup
+
+      -b     <backup-name>
+                             backupname - descriptive name for backup
+                             
+      -f     <error-code>
+      
+       Provide consistent mechanism for user's short-term backups, storing
+       copies in subdirectories of $HOME/.schooner/backups,keeping the
+       backed-up files rotated so that a specified number are kept (the
+       oldest gets deleted each time a backup is made). If no files have
+       changed since the last backup, do nothing.
+       
+EXIT STATUS
+      0      if OK
+      1      if failed       
+      stdout putonstdout
+       
+USAGE
+      usage+examples1
+       
+      usage+examples2
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 1; } # $1=error-code $2=error-descript
+
+find_backup()
+# Purpose:     Allow user to find a local backup file by a combination of
+#              filename, backup-date and text search.
+
+# Exit status: 0:success 
+#              1:fail
+# StdOut:      StdOut
+{
+      local AppName; AppName='Local Backup'
+      local Caption; Caption='Search for backed-up file'
+      local Message; Message='Please enter text you want to search for'
+      local SearchText
+      SearchText=$(sch-dialog-get-text 'Local Backup' "$Message" 'filelight')
+      grep -rls "$SearchText" "$HOME/.schooner/local-backup"
+      # TODO this function works but is very incomplete
+}
+
+SourceDir="$1"
+BakName="$2"
+BaseDir="$HOME/.schooner/local-backup"
+SubDir="$BaseDir/$BakName"
+MaxCopies="$(get_user_conf 'Backups' 'max-cyclic-backups')"  
+BakFileSpec="$SubDir/$BakName-$(date_stamp)"
+b='false'; s='false'; f='false'
+
+while getopts ":b:s:f:h" Option
+do
+      case "$Option" in       
+            b ) b='true'; BakName="$OPTARG" ;;
+            s ) s='true'; SourceDir="$OPTARG" ;; 
+            s ) f='true'; ErrCode="$OPTARG" ;; 
+            h ) usage; exit 0 ;; 
+#            ? ) abend '89491' "Invalid option" ;; 
+      esac
+done
+
+if [ "$f" = 'true' ]; then
+      [ "$b" = 'false' ] || abend '99803' "-b incompatible with -f option"
+      [ "$s" = 'false' ] || abend '84834' "-s incompatible with -f option"
+      [ "$ErrCode" = '' ] && abend '02747' "Missing arg for -f option ($ErrCode)"
+      find_backup
+elif [ "$f" = 'true' ]; then
+
+
+      
+
+[ "$" = 'true' ]; then
+      && abend '91404' "Missing option -a (app-name)"
+[ "$App" = '' ] && abend '52233' "Missing arg to opt -a (app-name)"
+
+[ "$c" = 'false' ] && abend '41459' "Missing option -c (caption)"
+[ "$Caption" = '' ] && abend '60500' "Missing arg to opt -c (caption)"
+
+[ "$q" = 'false' ] && abend '35676' "Missing option -q (question)"
+[ "$Question" = '' ] && abend '33446' "Missing arg to opt -q (question)"
+
+[ "$(whoami)" = 'root' ] && \
+      sch-dialog-error \
+            -r 'sch-local-backup' \
+            -l '99' -c '66416' - 'script cannot be run as root'
+
+      
+sch-dialog-question \
+      -a 'Schooner' -c 'Local Backup' \
+      -q "Do you want to backup $BakName now?"        
+                   
+[ $? -eq 0 ] || return 1
+
+Err="$(sch-file-exists -s "$BaseDir" -rwd)"
+[ "$?" = 0 ] || { umask 0022; mkdir -p "$BaseDir"; }
+if [ "$?" != 0 ]; then
+      umask 0022
+      abend '87633' "$BakName backup failed to create folder ($BaseDir)"
+else
+      umask 0022
+fi
+
+Err="$(sch-file-exists -s "$SourceDir" -rd)"
+if [ "$?" != 0 ]; then
+      abend '09349' "$BakName backup can't use source folder ($SourceDir) it is $Err"
+fi
+
+Err="$(sch-file-exists -s "$SubDir" -rwd)"
+[ "$?" = 0 ] || { umask 0022; mkdir -p "$SubDir"; }
+if [ "$?" != 0 ]; then
+      umask 0022
+      abend '27433' "$BakName backup failed to create backup sub-folder ($SubDir) it is $Err"
+else
+      umask 0022
+fi
+
+rsync -avzq "$SourceDir" "$BakFileSpec" # TODO v and s options contradictory?
+
+# Check that the rsync worked
+Err="$(sch-file-exists -s "$BakFileSpec" -rw)"
+if [ "$?" != 0 ]; then
+      abend '82340' "$BakName backup failed to create backup folder $BakFileSpec it is $Err"
+fi
+
+# TODO Shell Check says should use find instead of ls 'to better
+# handle non-alphanumeric filenames
+if [ $(ls -A "$SubDir" |wc -l) -gt "$MaxCopies" ]; then
+      cd "$SubDir" && rm -Rf "$(ls  | head -n 1)" #-B ignore '~' suffix ie backups
+fi
+
+# Remove older duplicates of backed-up files. Deliberately keep any directories
+# left empty because removing them would mess up the rotation mechanism. Result of
+# this command is to always add a new directory but only populate it with files
+# that have changed since last backup.
+fdupes -rqdN "$BaseDir" #r=recursive q=quiet d=delete N=noprompt 
+
+sch-dialog-notify -c 'Local Backup' -n "Backed up $BakName $(date)"
+exit 0
+

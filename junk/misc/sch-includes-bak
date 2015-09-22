@@ -1,0 +1,607 @@
+#!/bin/dash
+#keep shebang above here just to trigger syntax highlighting
+#=======================================================================
+# File:      sch-includes
+# Created:   03/10/2014
+# Purpose:   Global variables and functions to be included in sch scripts
+# Note:      In this file, position of functions is sometimes important. Do
+#            not re-order them without checking carefully.
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.comm
+# Copyright: © Bill Cane 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+# global constants
+
+# log files
+readonly gGlobalLog='/usr/share/schooner/global-log'
+readonly gUserLog="$HOME/.schooner/user-log" #
+
+# config files
+readonly gGlobalConf='/usr/share/schooner/global-conf'
+readonly gUserConf="$HOME/.schooner/user-conf"
+
+# directories
+readonly gBinDir='/usr/bin'
+readonly gSchDev='/home/schdev'
+
+# directories: to shorten paths in code
+readonly SD="$SchDev"                
+readonly BFILES="$gSchDev/base-files" 
+readonly SCHNR="/usr/share/schooner"
+readonly USK4="/usr/share/kde4" 
+
+# other constants
+readonly gPlaceHolder='==98246242=PLACEHOLDER=8578177=='
+readonly gScript="$(basename $0)"
+readonly gUser="$(whoami)"
+
+date_stamp()
+# Purpose:     provide consistent format for datestamp
+{ echo "$(date "+%Y-%m-%d_%H:%M:%S")"; } # eg 2015-07-11_23:21:57
+
+prompt_y_n()
+{
+	local Prompt; Prompt=''
+	local Message; Message="$1"
+	local Response; Response=''
+
+	if [ "$Message" = '' ]; then
+		Prompt='Please type y or n: '
+	else
+		Prompt="$Message - please type y or n:"
+	fi
+
+	while [ "$Response" != 'y' ] && [ "$Response" != 'n' ] ; do
+		echo "$Prompt"; read Response
+	done
+
+	if [ "$Response" = 'y' ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+locate_error()
+# Purpose:     search for  magic-num in gBinDir. If found, place filespec and linenumber 
+#              where magic number found on stdout.
+# Notes:       this function must be placed ahead of log-error and abend
+# Args:        $1:magic-num
+# Exit status: 0:found magic num
+#              1:nothing found
+# StdOut:      <line-no><" line "><filespec>
+{
+        # to speed things up, don't check for duplicate magic numbers - assume there are none
+	local MagicNum; MagicNum="$1"
+	local FileSpec; FileSpec=''
+	local LineNum; LineNum=''
+	[ "$1" != '' ] || { echo "missing argument"; exit 1; } # can't use abend or log-error here
+	FileSpec="$(grep --line-number $MagicNum /usr/bin/sch* |head -n1 |cut -d: -f1)"
+	LineNum="$(grep --line-number $MagicNum /usr/bin/sch* |head -n1 |cut -d: -f2)"
+        echo "$FileSpec line $LineNum"
+}
+
+log_error()
+# Purpose: report error in logfile
+{
+	local Magic; Magic="$1"
+	local Message; Message="$2"
+	local Log; Log=''
+	local Problem; Problem=''
+	local Location; Location=$(locate_error "$Magic")
+	if [ "$gUser" = 'root' ]; then
+		Log="$gGlobalLog"
+	else
+		Log="$gUserLog"
+	fi
+
+	sch-file-exists -s "$Log" -f
+	if [ "$?" != 0 ]; then
+		touch "$Log"
+		Problem=$(sch-file-exists -s "$Log" -rwf)
+		[ "$?" = 0 ] || { echo "Cannot write to log ($Log) because it is $Problem"; exit 1; }
+	fi
+
+	echo "$(date_stamp): $gScript: $Magic: $Location: $Message" >> "$Log"
+}
+
+log_comment()
+# Purpose: place comment in logfile
+{
+	local Message; Message="$2"
+	local Log; Log=''
+	local Problem; Problem=''
+	if [ "$gUser" = 'root' ]; then
+		Log="$gGlobalLog"
+	else
+		Log="$gUserLog"
+	fi
+
+	sch-file-exists -s "$Log" -f
+	if [ "$?" != 0 ]; then
+		touch "$Log"
+		Problem=$(sch-file-exists -s "$Log" -rwf)
+		[ "$?" = 0 ] || { echo "Cannot write to log ($Log) because it is $Problem"; exit 1; }
+	fi
+
+	echo "$(date_stamp): $gScript: $Message" >> "$Log"
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:magic-number $2:optional-error-message
+# Returns: never returns - always exits with 9
+{
+	local Magic; Magic=$1
+	local Message; Message=$2
+	local Location; Location=$(locate_error "$Magic")
+	[ "$Message" != "" ] || Message="Command failed"
+	log_error "$Magic" "Aborted: $Message"	
+	
+	echo "$gScript abend at $Location: $Message"
+	exit 9
+}
+
+ini_get_value()
+# Purpose: get value matching key from ini file
+# Args:    $1:filespec $2:section $3:key
+# Returns: 0:success 1:fail
+# Stdout:  if success, the returned value, else ""
+{
+	local FileSpec; local Sect; local Key; local Msg
+	FileSpec=$1; Sect=$2; Key=$3
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rf)
+	[ "$?" = 0 ] || abend '42395' "File ($FileSpec) $Msg"
+
+	if [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '80160' "Missing arg: sect [$Sect], key ($Key) or file ($FileSpec)"
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '79471' "File ($FileSpec) not found or not readable"
+	else
+		sch-crudini --get "$FileSpec" "$Sect" "$Key"
+		if [ $? ]; then
+			return 0
+		else
+			abend '88421' "unable to get [$Sect] or key ($Key) in file ($FileSpec)"
+		fi
+	fi
+}
+
+ini_set_value()
+# Purpose: set value for specified key in ini file
+# Args:    $1:filespec $2:section $3:key $4:value
+# Returns: 0:success 1:fail
+# Notes:   add new section and key as necessary
+{
+	local FileSpec; local Sect; local Key; local Value; local Msg
+	FileSpec=$1; Sect=$2; Key=$3; Value=$4
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rwf)
+	[ "$?" = 0 ] || abend '23591' "File ($FileSpec) $Msg"
+
+	if [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '35462' "Missing arg: sect [$Sect], key ($Key) or	file ($FileSpec)"
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '12663' "File ($FileSpec) not found or not readable"
+	fi
+
+	sch-crudini --set "$FileSpec" "$Sect" "$Key" "$Value"
+	if [ $? ]; then
+		return 0
+	else
+		abend '49438' "unable to set [$Sect], key ($Key) or \
+			value ($Value) in file ($FileSpec)"
+	fi
+}
+
+ini_line_exists()
+# Purpose: determine if a specified record exists in an ini file
+# Args:    $1:filespec $2:section $3:key $4:value
+# Returns: 0:success 1:fail
+{
+	local FileSpec; local Sect; local Key; local Value; local RealValue
+	FileSpec=$1; Sect=$2; Key=$3; Value=$4; RealValue=''
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rf)
+	[ "$?" = 0 ] || abend '76945' "File ($FileSpec) $Msg"
+
+	if [ "$Value" = "" ] || [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '73843' "Missing arg: value [$alue], sect [$Sect], key ($Key) or file ($FileSpec)"
+	else
+		RealValue=$(sch-crudini --get "$FileSpec" "$Sect" "$Key")
+		if [ "$Value" = "$RealValue" ]; then
+			return 0
+		else
+			return 1
+		fi
+	fi
+}
+
+abend_if_root()
+# Purpose: abort script if run by root
+# Args:    magic-number
+# Returns: never returns - abend always exits with 9
+{
+	[ "$1" = '' ] &&  abend '80498' 'missing arg1'
+	[ "$(whoami)" != "root" ] || abend '70243' "$gScript must not be run as root"
+}
+
+abend_if_not_root()
+# Purpose: abort script if not run by root
+# Args:    $1: magic-number
+# Returns: never returns _ abend always exits with 9
+{
+	[ "$1" = '' ] &&  abend '04116' 'missing arg1'
+	[ "$(whoami)" = "root" ] || abend '78402' "$gScript must be run as root"
+}
+
+set_global_conf()
+# Purpose: set value in key=value pair in schooner global config ini file
+# Args:    $1:section $2:key $3:value
+# Returns: 0:success 1:fail
+# Note:    this function has to be placed after abend
+{ abend-if-not-root '94485'; ini_set_value "$gGlobalConf" "$1" "$2" "$3"; return $?; }
+
+get_global_conf()
+# Purpose: get value from key=value pair in schooner global config ini file
+# Args:    $1:section $2:key 
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified key, else ""
+{ ini_get_value "$gGlobalConf" "$1" "$2"; return $?; }
+
+get_user_conf()
+# Purpose: get value from key=value pair in schooner user config ini file
+# Args:    $1:section $2:key 
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified key, else ""
+{ ini_get_value "$gUserConf" "$1" "$2"; return $?; }
+
+set_user_conf()
+# Purpose: set value in key=value pair in schooner user config ini file
+# Args:    $1:section $2:key $3:value
+# Returns: 0:success 1:fail
+{ abend-if-root '78486'; ini_set_value "$gUserConf" "$1" "$2" "$3"; return $?; }
+
+abend_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1: magic-number $2:process-name
+# Returns: never returns - abend always exits with 9
+{
+	pidof "$2"
+	if [ "$?" = 0 ]; then
+		return 0
+	else
+		abend '03519' "aborting because $2 is running"
+	fi
+}
+
+report_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1:process-name
+# Returns: 0 if process running, else 1
+{ pidof "$2";	[ "$?" = 0 ] && { echo "$2 is running"; return 0; } }
+
+system_is_online()
+# Purpose: Detect whether system is online or not
+# Args:    none
+# Returns: 0:online 1:offline
+{
+	local TmpFile; TmpFile="$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)"
+	local WebPage; WebPage="$(read_sch_conf 'General' 'test-web-page')"
+
+	/usr/bin/wget -q --tries=10 --timeout=20 "$WebPage" -O "$TmpFile" &> /dev/null
+
+	if [ -s "$TmpFile" ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+prompt_if_offline()
+# Purpose: if system is offline prompt user to take some action
+# Args:    $1:message
+# Returns: 0:online 1:offline
+{
+	system_is_online
+	if [ $? = 1 ]; then
+		prompt_y_n "system is off line - abort now? "
+		if [ $? = 1 ]; then
+			abend '46890' "system is offline and you chose to abort $gScript"
+		else
+			system_is_online
+			if [ $? = 1 ]; then
+				abend '71524' "system is offline and you chose to abort $gScript"
+			else
+				return 0
+			fi
+		fi
+	else
+		return 0
+	fi
+}
+
+convert_seconds_to_date()
+# Purpose: convert seconds since epoch into date
+# Args:    $1:seconds
+# Returns: 0:success 1:fail
+# Stdout:  date
+{ date --date "@$1"; }
+
+local_backup()
+# Purpose:     Provide consistent mechanism for user's short-term backups, storing
+#              copies in subdirectories of $HOME/.schooner/backups,keeping the
+#              backed-up files rotated so that a specified number are kept (the
+#              oldest gets deleted each time a backup is made). If no files have
+#              changed since the last backup, do nothing.
+#
+# Notes:       For the time being, there's no provision for automated restore.
+#
+# Args:        $1: filespec of "source" file or dir to backup
+#              $2: backupname - descriptive name for backup (see fred example above)
+#
+# Exit status: 0:success
+#              1:fail
+{
+	abend_if_root '25128'
+	local SourceDir; SourceDir="$1"
+	local BakName; BakName="$2"
+	local BaseDir; BaseDir="$HOME/.schooner/local-backup"
+	local SubDir; SubDir="$BaseDir/$BakName"
+	local MaxCopies; MaxCopies="$(get_user_conf 'Backups' 'max-cyclic-backups')"	
+	local BakFileSpec; BakFileSpec="$SubDir/$BakName-$(date_stamp)"
+	
+	dlg_question 'Local Backup' \
+	             "$BakName" \
+	             "Do you want to backup $BakName now?" \
+	             'filelight' "Yes" "Cancel" 
+	             
+	[ $? -eq 0 ] || return 1
+
+	Err="$(sch-file-exists -s "$BaseDir" -rwd)"
+	[ "$?" = 0 ] || { umask 0022; mkdir -p "$BaseDir"; }
+	if [ "$?" != 0 ]; then
+		umask 0022
+		abend '03488' "$BakName backup failed to create backup folder ($BaseDir)"
+	else
+		umask 0022
+	fi
+
+	Err="$(sch-file-exists -s "$SourceDir" -rd)"
+	if [ "$?" != 0 ]; then
+		abend '12414' "$BakName backup can't use source folder ($SourceDir) it is $Err"
+	fi
+
+	Err="$(sch-file-exists -s "$SubDir" -rwd)"
+	[ "$?" = 0 ] || { umask 0022; mkdir -p "$SubDir"; }
+	if [ "$?" != 0 ]; then
+		umask 0022
+		abend '03488' "$BakName backup failed to create backup sub-folder ($SubDir) it is $Err"
+	else
+		umask 0022
+	fi
+
+	rsync -avzq "$SourceDir" "$BakFileSpec" # TODO v and s options contradictory?
+
+	# Check that the rsync worked
+	Err="$(sch-file-exists -s "$BakFileSpec" -rw)"
+	if [ "$?" != 0 ]; then
+		abend '81643' "$BakName backup failed to create backup folder $BakFileSpec it is $Err"
+	fi
+
+	# Rotate backup dir - if more than $MaxCopies files exist, remove oldest
+	# TODO Shell Check says should use find instead of ls 'to better
+	# handle non-alphanumeric filenames
+	if [ $(ls -A "$SubDir" |wc -l) -gt "$MaxCopies" ]; then
+		cd "$SubDir" && rm -Rf "$(ls  | head -n 1)" #-B ignore '~' suffix ie backups
+	fi
+
+	# Remove older duplicates of backed-up files. Deliberately keep any directories
+	# left empty because removing them would mess up the rotation mechanism. Result of
+	# this command is to always add a new directory but only populate it with files
+	# that have changed since last backup.
+	fdupes -rqdN "$BaseDir" #r=recursive q=quiet d=delete N=noprompt 
+	
+	dlg_notify 'Local Backup' "Backed up $BakName $(date)" 'filelight' '10'
+	return 0
+}
+
+find_local_backup()
+# Purpose:     Allow user to find a local backup file by a combination of
+#              filename, backup-date and text search.
+
+# Exit status: 0:success 
+#              1:fail
+# StdOut:      StdOut
+{
+      local AppName; AppName='Local Backup'
+      local Caption; Caption='Search for backed-up file'
+      local Message; Message='Please enter text you want to search for'
+      local SearchText; SearchText=$(dlg_get_text "$AppName" "$Message" 'filelight')
+      grep -rls "$SearchText" "$HOME/.schooner/local-backup"
+      # TODO this function works but is very incomplete
+}
+
+dlg_notify()
+# Purpose:     Wrapper for notification dialog
+#
+# Args:        $1: appname
+#              $2: caption
+#              $2: notification
+#              $3: icon
+#              $4: timeout
+#
+# Notes:       Default
+#
+# Exit status: 0:success
+#              1:fail
+{
+       local AppName; AppName="$1"
+       local Notification; Notification="$2"
+       local Icon; Icon="$3"
+       local TimeOut; TimeOut="$4"
+       
+       kdialog --title "$AppName" \
+               --icon "$Icon" \
+               --passivepopup "$Notification" "$TimeOut"               
+}
+
+dlg_get_password()
+# Purpose:     Wrapper for password dialog
+#
+# Args:        $1: window title
+#              $2: message text
+#
+# Exit status: 0:success
+#              1:fail
+#              stdout:password
+{
+	echo $(kdialog --title "$1" --password "$2")
+}
+
+dlg_msgbox()
+# Purpose:     Wrapper for password dialog
+#
+# Args:        $1: window title
+#              $2: message text
+#
+# Exit status: 0: always
+#             
+{
+	kdialog --msgbox --title "$1" "$2"
+	return 0
+}
+
+dlg_question()
+# Purpose:     Display question with Yes and No buttons (button Text must be specified). Optionally display a
+#              "don't show again" checkbox
+#
+# Notes:       If $7 exists, display the "don't show again" checkbox and treat $3
+#              as prefix for "don't show again" key in local config file. For example
+#              if $7=MyApp, key will be MyAppDontShowAgain
+#
+# Args:        $1: appname
+#              $2: caption
+#              $3: question
+#              $4: icon
+#              $5: yes-label
+#              $6: no-label
+#              $7: dontagain-key (optional)
+#
+#
+# Exit status: 0:success
+#              1:fail
+#              stdout:password
+{
+        local AppName; AppName="$1"
+        local Caption; Caption="$2"
+        local Question; Question="$3"
+        local Icon; Icon="$4"
+        local YesLabel; YesLabel="$5"
+        local NoLabel; NoLabel="$6"
+        local DontAgainKey; DontAgainKey="$7"
+                
+        [ "$Caption" = '' ] && abend '28018' "Missing Arg1 (Caption)"
+        [ "$Question" = '' ] && abend '74888' "Missing Arg2 (Question)"
+        [ "$Icon" = '' ] && abend '82953' "Missing Arg3 (Icon)"
+        [ "$YesLabel" = '' ] && abend '31520' "Missing Arg4 (YesLabel)"
+        [ "$YesLabel" = '' ] && abend '67976' "Missing Arg5 (NoLabel)"
+        
+        # TODO possibly format the message
+        
+        if [ "$DontAgainKey" = '' ]; then
+		kdialog --title "$AppName" \
+		        --caption "$Caption" \
+		        --yesno "$Question" \
+		        --yes-label "$YesLabel" \
+		        --no-label "$NoLabel" \
+		        --icon "$Icon" 
+		        return $?
+	else
+		kdialog --title "$AppName" \
+		        --caption "$Caption" \
+		        --yesno "$Question" \
+		        --yes-label "$YesLabel" \
+		        --no-label "$NoLabel" \
+		        --icon "$Icon" \
+		        --dontagain "$gUserConf:$DontAgainKey"
+		        return $?
+	fi
+}
+
+dlg_get_text()
+# Purpose:     Show text entry box with Yes and Cancel buttons.
+# Exit status: 0: user replied
+#              1: no reply
+#              stdout: user-reply-text
+#             
+{
+        local Caption; Caption="$1"
+        local Message; Message="$2"
+        local Icon; Icon="$3"
+        local Reply; Reply=''
+        
+        [ "$Caption" = '' ] && abend '28018' "Missing Arg1 (Caption)"
+        [ "$Message" = '' ] && abend '74888' "Missing Arg2 (Message)"
+        [ "$Icon" = '' ] && abend '29886' "Missing Arg3 (Icon)"
+        
+        # TODO possibly format the message
+        
+        Reply=$(kdialog --inputbox \
+                        --caption "$Caption"  "$Message" \
+                        --icon "$Icon")        
+         
+	[ "$Reply" != '' ] && { echo "$Reply"; return 0; }; return 1 
+}
+
+dlg_show_textfile()
+# Purpose:     Show text d box with Yes and Cancel buttons.
+# Exit status: 0: user replied
+#              1: no reply
+#              stdout: user-reply-text
+#             
+{
+       local AppName; AppName="$1"
+       local Caption; Caption="$2"
+       local Icon; Icon="$3"
+       local FileSpec; FileSpec="$4"
+       local Width; Width=300
+       local Height; Height=500        
+                
+        # TODO need to check this is a textfile!
+        # TODO should calculate size based on lin-lnght and no lines in file,
+        # but can be overidden by params
+        [ "$Caption" = '' ] && abend '28018' "Missing Arg1 (Caption)"
+        [ "$FileSpec" = '' ] && abend '74888' "Missing Arg2 (FileSpec)"
+        [ "$Icon" = '' ] && abend '29886' "Missing Arg3 (Icon)"
+        
+        # TODO may need to process the file before display
+        
+        kdialog --textbox "$FileSpec" "$Width" "$Height" \
+                --title "$AppName" \
+                --caption "$Caption" \
+                --icon "$Icon"        
+}
+
+
+kdialog --yesnocancel "This App blah blah blahah haha hahah ahahah <br> shshs shshhs" --yes-label "Open MyApp" --no-label "Cancel" --cancel-label "Help" --title "MyApp" --caption "Introduction" --dontagain "pink:pook"
+
+
+# eof helpers ==================================================================

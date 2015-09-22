@@ -1,0 +1,115 @@
+#!/bin/dash
+#=======================================================================
+# File:     sch-userconfig
+# Created:   14/07/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-include; abend_if_root
+#=======================================================================
+
+#=initialization========================================================
+Operation=''; Section=''; Key=''; Value=''; Rtn=''
+
+#=functions=============================================================
+
+
+reset_user_config() {
+      cp -f "$User_Config_Default" "$User_Config"
+      [ $? ] || abend '83553' "$(gettext 'fail_reset_user_config')"
+}
+
+o=1; s=1; k=1; v=1
+while getopts ":o:s:k:v:" Option
+do
+      case "$Option" in
+            o ) o=0; Operation="$OPTARG" ;;
+            s ) s=0; Section="$OPTARG";;
+            k ) k=0; Key="$OPTARG";;
+            v ) v=0; Value="$OPTARG";;
+            h ) usage; exit 0 ;;
+      esac
+done
+
+sch-file-exists -s "$User_Config" -rf; [ $? ] || reset_user_config
+[ $o = 0 ] || abend_bad_option '-o' '67543'
+[ $s = 0 ] || abend_bad_option '-s' '93142'
+[ "$Section" != '' ] || abend_bad_option '-s' '09075'
+[ $k = 0 ] || abend_bad_option '-k' '76501'
+[ "$Key" != '' ] || abend_bad_option '-k' '01915'
+
+case "$Operation" in
+      'set')
+            [ $v = 0 ] || abend_bad_option '-v' '30418'
+            # null $Value is valid
+            sch-crudini --set "$User_Config" "$Section" "$Key" "$Value"
+            [ $? = 0 ] || abend '49438' "$(gettext 'fail_write_user_config')" ;;
+
+      'get')
+            sch-crudini --get "$User_Config" "$Section" "$Key"
+            [ $? = 0 ] || exit 1 ;; # null return is valid
+
+      'exists')
+            [ $v = 0 ] || abend_bad_option '-v' '97486'
+            # don't screen out null $Value- it's a valid input
+            Rtn=$(sch-crudini --get "$User_Config" "$Section" "$Key")
+            [ "$Value" = "$Rtn" ] || exit 1 ;;
+
+      'reset') reset_user_config ;;
+
+            *) abend_bad_option '-??' '29066' ;;
+esac
+
+exit 0
+
+
+usage()
+{
+cat << EOF
+NAME
+      $This_Script - interface to user config file
+
+SYNOPSIS
+      $This_Script [OPTION]... [ARG]...
+
+DESCRIPTION
+      -o  <'get' | 'set' | 'exists' | 'reset'>
+
+      -s  <section-name>
+
+      -k  <key-name>
+
+      -v  <value>
+
+      -r  reset config file to default
+
+      -h
+
+EXIT STATUS
+      0      if OK
+      1      if failed
+      stdout putonstdout
+
+NOTES
+      If the user config file ($User_Config) doesn't
+      exist, $This_Script will attempt to copy $User_Config_Default in
+USAGE
+      $This_Script -o 'set' -s 'My Section' -k 'MyKey' -v 'mynewvalue'
+
+EOF
+}

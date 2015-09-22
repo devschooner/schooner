@@ -1,0 +1,143 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid   ""
+msgstr  "Project-Id-Version: PACKAGE VERSION\n"
+        "Report-Msgid-Bugs-To: \n"
+        "POT-Creation-Date: 2015-09-02 00:34+0100\n"
+        "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+        "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+        "Language-Team: LANGUAGE <LL@li.org>\n"
+        "Language: \n"
+        "MIME-Version: 1.0\n"
+        "Content-Type: text/plain; charset=UTF-8\n"
+        "Content-Transfer-Encoding: 8bit\n"
+
+#: sch-include:83 sch-include:79
+msgid   "App stopped at line"
+msgstr  ""
+
+#: sch-include:65 sch-include:68 sch-include:113
+msgid   "Bad parameter"
+msgstr  ""
+
+#: sch-include:62
+msgid   "Command failed"
+msgstr  ""
+
+#: sch-include:107
+msgid   "Incompatible options"
+msgstr  ""
+
+#: sch-include:103 sch-include:99
+msgid   "bad_opt"
+msgstr  ""
+
+#: sch-include:69 sch-include:72 sch-include:117
+msgid   "bad_param"
+msgstr  "Missing or invalid parameter"
+
+#: sch-include:84 sch-include:80
+msgid   "cause_was_error_code_error_msg"
+msgstr  ""
+
+#: sch-include:66
+msgid   "command_failed"
+msgstr  "Command failed"
+
+#: sch-mini-backup:119
+msgid   "confirm_want_to_mini_backup"
+msgstr  ""
+
+#: sch-mini-backup:89
+msgid   "enter_search_text"
+msgstr  "Enter the text you want to search for"
+
+#: sch-include:95 sch-include:91
+msgid   "error_message"
+msgstr  ""
+
+#: sch-userconfig:34
+msgid   "fail_reset_user_config"
+msgstr  "Failed to reset user configuration file $User_Conf"
+
+#: sch-userconfig:61
+msgid   "fail_write_user_config"
+msgstr  "Failed to write to user configuration file $User_Conf"
+
+#: sch-include:111
+msgid   "incompatible_opts"
+msgstr  "Command line options $Cmd_Line_Opt and $Cmd_Line_Opt2 are "
+        "incompatible"
+
+#: sch-mini-backup:88 sch-mini-backup:118 sch-mini-backup:125
+msgid   "mini_backup"
+msgstr  "Mini Backup"
+
+#: sch-mini-backup:126
+msgid   "mini_backup_completed"
+msgstr  "MiniBackup completed"
+
+#: sch-mini-backup:49 sch-mini-backup:128
+msgid   "mini_backup_failed"
+msgstr  "Failed to make backup \"$BakName\". $SourceDir was $Err."
+
+#: sch-mini-backup:42 sch-mini-backup:56 sch-mini-backup:66
+msgid   "mini_backup_folder_creation_failed"
+msgstr  "Failed to make backup \"$BakName\". Could not create backup folder "
+        "$SubDir. Error was: \"$Err\"."
+
+#: sch-include:85 sch-include:81
+msgid   "msg_copied_to_clipboard"
+msgstr  "This message has been copied to the clipboard"
+
+#: sch-file-exists:85
+msgid   "non-directory"
+msgstr  "non-directory"
+
+#: sch-file-exists:97
+msgid   "non-empty"
+msgstr  "non-empty"
+
+#: sch-file-exists:81
+msgid   "non-executable"
+msgstr  "non-executable"
+
+#: sch-file-exists:67
+msgid   "non-existent"
+msgstr  "non-existent"
+
+#: sch-file-exists:73
+msgid   "non-readable"
+msgstr  "non-readable"
+
+#: sch-file-exists:93
+msgid   "non-regular-file"
+msgstr  "non-regular-file"
+
+#: sch-file-exists:89
+msgid   "non-symbolic-link"
+msgstr  "non-symbolic-link"
+
+#: sch-file-exists:77
+msgid   "non-writable"
+msgstr  "non-writable"
+
+#: sch-file-exists:105
+msgid   "not-owned-by-this-gid"
+msgstr  "not-owned-by-this-gid"
+
+#: sch-file-exists:101
+msgid   "not-owned-by-this-uid"
+msgstr  "not-owned-by-this-uid"
+
+#: sch-file-exists:109
+msgid   "not-specified-mimetype"
+msgstr  "not-specified-mimetype"
+
+#: sch-include:94 sch-mini-backup:87 sch-mini-backup:117 sch-include:90
+msgid   "schooner"
+msgstr  "Schooner"

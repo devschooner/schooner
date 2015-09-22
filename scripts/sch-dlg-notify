@@ -1,0 +1,85 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-dlg-notify
+# Created:   16/07/2015
+# Purpose:   show passive dialog in notification area
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-include;abend_if_root
+
+
+
+Notify=''; Timeout=''; Caption=''; Icon=''
+
+while getopts ":n:t:c:i:h" Option
+do
+      case "$Option" in
+            n ) Notify="$OPTARG" ;;
+            t ) Timeout="$OPTARG" ;;
+            c ) Caption="$OPTARG" ;;
+            i ) Icon="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+            * ) abend_bad_option '-??' '44800' ;;
+      esac
+done
+
+[ "$Notify" != '' ] || abend_bad_option '-n' '28181'
+[ "$Caption" != '' ] || abend_bad_option '-c' '56387'
+[ "$Timeout" != '' ] || Timeout=10
+[ "$Icon" != '' ] || Icon='dialog-information'
+
+kdialog \
+      --passivepopup "$(echo $Notify |fmt -50 -u)" "$Timeout" \
+      --title "$Caption" \
+      --icon "$Icon"
+
+# return exit status of kdialog
+
+
+usage()
+{
+cat << EOF
+NAME
+      $This_Script - show passive dialog in notification area
+
+SYNOPSIS
+      $This_Script [OPTION] [ARG]
+
+      -n <notification>
+
+      -t <timeout>          in seconds
+
+      -c <caption>
+
+      -i <icon>
+
+      -n and c are required
+      -t is optional, defaults to 10 seconds
+      -i is optional, defaults to 'dialog-information'
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if OK
+      1      if unable to display file or failed for any other reason
+
+USAGE
+      $This_Script -c 'MyApp' -n 'doing something' -t '15'
+
+EOF
+}

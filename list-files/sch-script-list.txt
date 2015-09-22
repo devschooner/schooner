@@ -1,0 +1,9 @@
+# schooner scripts
+sch-include
+sch-dlg-notify
+sch-userconfig
+sch-file-exists
+sch-mini-backup
+sch-convert-netrunner
+sch-setup-firewall
+

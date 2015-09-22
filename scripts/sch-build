@@ -1,0 +1,105 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-build
+# Created:   01/09/2015
+# Purpose:   TODO
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+readonly Git_Repo='/home/dev/git-repos/schooner'
+readonly List_Files="$Git_Repo/list-files"
+
+readonly Src_Solid="$Git_Repo/solid-actions"
+readonly Target_Solid='/usr/share/kde4/apps/solid/actions'
+
+readonly Src_ServMenu="$Git_Repo/service-menus"
+readonly Target_ServMenu='/usr/share/kde4/services/ServiceMenus'
+
+die() { # $1=error-message $3=error-code
+      echo "sch-build: $1: error-code $2"; exit 9
+}
+
+update_script() { # $1=script-name
+      sudo cp "$Git_Repo/scripts/$1" /usr/bin || \
+      die "cp failed on script: $1" '45593'
+
+      sudo chmod a+x "/usr/bin/$1" || \
+      die "chmod failed on script: $1" '66451'
+
+      # merge strings to joint pot file
+      xgettext -no-wrap --debug -i -s -j -L Shell -o sch-scripts.po "$1" || \
+      die "xgettext failed on script: $1" '00984'
+
+      # TODO process man pages
+}
+
+is_comment() { # $1=file-line
+      FirstChar=$(expr substr "$1" 1 1)
+      [ "$FirstChar" = '#' ] && return 0; return 1
+}
+
+# don't run as root - use sudo on per-command basis
+[ "$(whoami)" != 'root' ] ||  die 'must not be run as root' '77663'
+
+# process scripts
+while read Line
+      do
+            is_comment "$Line" && continue
+            update_script "$Line"
+      done <"$List_Files/sch-script-list.txt"
+
+# process i18n
+msgfmt -o sch-scripts.sh.mo sch-scripts.po || \
+die "msgfmt failed on script: $1" '23653'
+
+sudo cp sch-scripts.sh.mo /usr/share/locale/en_GB/LC_MESSAGES || \
+die "cp failed on script: $1" '62539'
+
+# process solid actions
+while read Line
+      do
+            is_comment "$Line" && continue
+            sudo rm -f "$Target_Solid/$Line" || \
+            die "rm failed on solid action: $Line" '45593'
+      done <"$List_Files/sch-solid-actions-remove-list.txt"
+
+while read Line
+      do
+            is_comment "$Line" && continue
+            sudo cp -f "$Src_Solid/$Line" "$Target_Solid" || \
+            die "cp failed on solid action $Line" '45593'
+      done <"$List_Files/sch-solid-actions-add-list.txt"
+
+# process service menus
+while read Line
+      do
+            is_comment "$Line" && continue
+            sudo rm -f "$Target_ServMenu/$Line" || \
+            die "rm failed on service menu: $Line" '74986'
+      done <"$List_Files/sch-service-menu-remove-list.txt"
+
+while read Line
+      do
+            is_comment "$Line" && continue
+            sudo cp -f "$Src_ServMenus/$Line" "$Target_ServMenu/ServiceMenus" || \
+            die "cp failed on service menu $Line" '00935'
+      done <"$List_Files/sch-service-menu-add-list.txt"
+
+
+
+

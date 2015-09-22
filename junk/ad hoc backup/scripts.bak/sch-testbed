@@ -1,0 +1,6 @@
+#!/bin/dash
+. /usr/bin/sch-includes
+
+
+dlg_show_textfile "Local Backup" "Examine this file" "filelight" "/home/schdev/Desktop/List Of Actions" 
+#dlg_show_text "Local Backup" "Examine this file" "filelight" "/home/schdev/Desktop/Pigeon-sound-2.mp3"

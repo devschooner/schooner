@@ -1,0 +1,83 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-notify
+# Created:   16/07/2015
+# Purpose:   show passive dialog in notification area
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+ 
+usage()
+{
+cat << EOF
+NAME
+      sch-dialog-notify - show passive dialog in notification area
+      
+SYNOPSIS
+      sch-dialog-notify [OPTION] [ARG]
+      
+      -n <notification>
+      
+      -t <timeout>          in seconds 
+      
+      -c <caption>
+      
+      -i <icon>
+      
+      -n is required
+      -t is optional, defaults to 10 seconds
+      -i is optional, defaults to 'dialog-information'
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if OK
+      1      if unable to display file or failed for any other reason
+
+USAGE
+      sch-dialog-notify -c 'MyApp' -n 'doing something' -t '15'
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 1; }
+
+Notify=''; TimeOut='10'; Caption=''; Icon='dialog-information'
+n='false'; t='false'; c='false'; i='false'
+
+while getopts "n:t:c:i:h" Option
+do
+      case "$Option" in
+            n ) n='true'; Notify="$OPTARG" ;;
+            t ) t='true'; TimeOut="$OPTARG" ;;
+            c ) c='true'; Caption="$OPTARG" ;;
+            i ) i='true'; Icon="$OPTARG" ;; 
+            h ) usage; exit 0 ;;
+            * ) abend '44800' "Invalid option ($OPTARG)" ;;
+      esac
+done
+
+[ "$n" = 'false' ] && abend '99223' "Missing option -n (notification)"
+[ "$Notify" = '' ] && abend '28181' "Missing arg to opt -n (notification)"
+
+kdialog \
+      --passivepopup "$(echo $Notify |fmt -50 -u)" "$TimeOut" \
+      --title "$Caption" \
+      --icon "$Icon"
+
+exit $?
+

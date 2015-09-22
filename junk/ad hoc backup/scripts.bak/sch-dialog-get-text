@@ -1,0 +1,89 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-get-text
+# Created:   24/08/2015
+# Purpose:   get user text input - show ok and cancel buttons
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+      sch-dialog-get-text - get user text input - show ok and cancel buttons
+
+SYNOPSIS
+      sch-dialog-get-text [OPTION] [ARG]
+      
+      -a <app-name>          appears left side of title
+      
+      -c <caption>           appears right side of title
+      
+      -q <question>          text of question
+      
+      -i <icon>              appears in title bar
+      
+      -h                     display usage
+      
+      -a, c, q, i are all required
+      -h orerrides any other options
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if 'OK' pressed and non-null -h option used
+      1      if 'No' pressed
+
+USAGE
+      sch-dialog-get-text -a 'MyApp' -c 'doing something' -q 'MyMessage -i 'MyIcon'
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 9; } # $1=error-code $2=error-descript
+
+App=''; Caption=''; Message=''; Icon='dialog-information'
+a='false'; c='false'; i='false'; m='false'
+
+while getopts ":a:c:m:h" Option
+do
+      case "$Option" in
+            a ) a='true'; App="$OPTARG";;
+            c ) c='true'; Caption="$OPTARG";;
+            m ) m='true'; Question="$OPTARG";;
+            i ) i='true'; Icon="$OPTARG";;
+            h ) usage; exit 0 ;;
+            ? ) abend '13082' "Invalid option" ;;
+      esac
+done
+
+[ "$a" = 'false' ] && abend '57882' "Missing option -a (app-name)"
+[ "$App" = '' ] && abend '78105' "Missing arg to opt -a (app-name)"
+
+[ "$c" = 'false' ] && abend '62679' "Missing option -c (caption)"
+[ "$Caption" = '' ] && abend '45169' "Missing arg to opt -c (caption)"
+
+[ "$m" = 'false' ] && abend '61141' "Missing option -m (message)"
+[ "$Message" = '' ] && abend '39171' "Missing arg to opt -m (mesage)"
+
+Reply=$(kdialog \
+      --inputbox "$(echo $Question |fmt -50 -u)" \
+      --title "$App" \
+      --caption "$Caption" \
+      --icon "$Icon")
+
+[ "$Reply" != '' ] && { echo "$Reply"; exit 0; }; exit 1 

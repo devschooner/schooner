@@ -1,0 +1,82 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-userlog
+# Created:   13/07/2015
+# Purpose:   Interface to schooner user logfile.
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-constants
+abort_if_root
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+       $THIS_SCRIPT - interface to schooner user logfile
+
+SYNOPSIS
+       $THIS_SCRIPT [OPTION]... [ARG]...
+
+DESCRIPTION
+
+      -e  <log-entry>           free format text 
+      
+      -h                        help: display usage.
+       
+
+      -h (any other options combined with -h will be ignored)
+      
+EXIT STATUS
+      0:      if made log entry
+      1:      if failed to make log entry   
+       
+USAGE
+      $THIS_SCRIPT -e 'oops just made an error'
+EOF
+}
+
+########## initializations ##################################################### 
+LogEntry=''; e=1; Reason=''
+
+########## functions ###########################################################
+abend_no_log () { # $1=line-no $2=error-code $3=error-message 
+      # can't use the usual 'abend' function because it would call this script
+      # and endlessly loop. So errors in this script won't be logged. 
+      sch-dlg-error -r "$THIS_SCRIPT" -l "$1" -c "$2" -m "$3"
+      exit 9
+}
+
+########## main ################################################################
+while getopts ":e:h" Option
+do
+      case "$Option" in		
+          e ) e=0; LogEntry="$OPTARG" ;;
+          h ) usage; exit 0 ;;
+      esac
+done
+
+[ "$e" = 0 ] || abend_no_log '??' '86421' 'missing option or argument -e'
+
+touch "$USER_LOG"
+Reason=$(sch-file-exists -s "$USER_LOG" -rwf)
+exit_stat 'sch-file-exists' $? '84621'
+[ "$?" = 0 ] || abend_no_log '??' '68143' "cannot access log - $USER_LOG is $Reason"
+
+exit 0
+
+ 

@@ -1,0 +1,97 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-error
+# Created:   16/07/2015
+# Purpose:   show error message in dialog with OK button to close 
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+{
+cat << EOF
+NAME
+      sch-dialog-error - dialog to display error message. OK button 
+      closes it.
+
+SYNOPSIS
+      sch-dialog-error [OPTION] [ARG]
+      
+      -r <calling-routine>
+      
+      -l <line-number> 
+      
+      -c <error-code>
+      
+      -m <error-message>
+      
+      -h                     display usage
+      
+      -r, l, c, m are all required
+      if -h is used, all other options are ignored
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if OK pressed or if -h used
+      1      if failed for any reason
+
+USAGE
+      sch-dialog-error -r 'myscript' -l '102' -c '45437' -m 'something is wrong'
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 1; } # $1=error-code $2=error-descript
+
+Caller=''; LineNum=''; ErrorCode=''; ErrorMsg=''
+r='false'; l='false'; c='false'; m='false'
+
+while getopts ":r:l:c:m:h" Option
+do
+      case "$Option" in
+            r ) r='true'; Caller="$OPTARG" ;;
+            l ) l='true'; LineNum="$OPTARG" ;;
+            c ) c='true'; ErrorCode="$OPTARG" ;;
+            m ) m='true'; ErrorMsg="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+            ? ) abend '93906' 'Invalid option' ;;
+      esac
+done
+
+[ "$r" = 'false' ] && abend '59614' "Missing option -r (calling-routine)"
+[ "$Caller" = '' ] && abend '53435' "Missing arg to opt -r (calling-routine)"
+
+[ "$l" = 'false' ] && abend '60412' "Missing option -l (line-no)"
+[ "$LineNum" = '' ] && abend '74551' "Missing arg to opt -l (line-no)"
+
+[ "$c" = 'false' ] && abend '14790' "Missing option -c (error-code)"
+[ "$ErrorCode" = '' ] && abend '75753' "Missing arg to opt -c (error-code)"
+
+[ "$m" = 'false' ] && abend '00870' "Missing option -m (error-message)"
+[ "$ErrorMsg" = '' ] && abend '24517' "Missing arg to opt -m (error-message)"
+
+Line1="Program \"$Caller\" stopped at line $LineNum " 
+Line2="with the following error: \"$ErrorCode - $ErrorMsg\". "
+Line3="TODO  your options? ..."
+
+kdialog --error "$Line1
+$Line2
+$Line3" --title 'Schooner' --caption 'Error Message'
+
+exit $?
+

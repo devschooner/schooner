@@ -1,0 +1,82 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-error
+# Created:   16/07/2015
+# Purpose:   see usage function below
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+#=======================================================================
+. /usr/bin/sch-constants; abort_if_root 
+
+
+#========= functions ===========================================================
+usage()
+{
+cat << EOF
+NAME
+      $This_Script - handle an error, locating origin where possible, displaying 
+      message to user, making entry in user-log, copying info to clipboard.
+
+SYNOPSIS
+      $This_Script [OPTION] [ARG]
+      
+      -c <error-code>        unique 5-char error code embedded in calling script
+      
+      -m <error-message>     message describing error
+      
+      -h                     display usage
+      
+      option -c is required unless -h is used.
+      
+      option -m is optional - if not used default message is 'command failed'      
+      
+      all other options are ignored when -h is used
+
+DESCRIPTION
+      Wrapper for abend function
+
+EXIT STATUS
+      0      if OK pressed or if -h used
+      1      if failed for any reason
+
+USAGE
+      $This_Script -c '12345' -m "it's all gone horribly wrong..."
+EOF
+}
+
+#========= initializations ===================================================== 
+Source=''; LineNo=''; ErrCode=''; ErrMsg=''; c=1
+
+#========= main ================================================================
+while getopts ":c:m:h" Option
+do
+      case "$Option" in
+            c ) c=0; ErrCode="$OPTARG" ;;
+            m ) ErrMsg="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+            * ) abend '07725' 'invalid option' ;;
+      esac
+done
+
+# validate options - error-code must be 5 numeric chars
+[ $c -eq 0 ] || abend '87401' 'invalid argument to option -c'
+[ ${#ErrCode} -eq 5 ] || abend '82743' 'invalid argument to option -c' 
+case ${ErrCode#} in 
+      *[!0-9]* ) abend '07725' 'invalid argument to option -c';;
+esac  
+
+abend "$ErrCode" "$ErrMsg"; exit 9

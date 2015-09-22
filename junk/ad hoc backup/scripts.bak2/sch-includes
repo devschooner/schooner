@@ -1,0 +1,293 @@
+#!/bin/dash
+#keep shebang above here just to trigger syntax highlighting
+#=======================================================================
+# File:      sch-includes
+# Created:   03/10/2014
+# Purpose:   Global variables and functions to be included in sch scripts
+# Note:      In this file, position of functions is sometimes important. Do
+#            not re-order them without checking carefully.
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmail.comm
+# Copyright: © Bill Cane 
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+# global constants
+
+# directories
+readonly gBinDir='/usr/bin'
+readonly gSchDev='/home/schdev'
+
+# directories: to shorten paths in code
+readonly SD="$SchDev"                
+readonly BFILES="$gSchDev/base-files" 
+readonly SCHNR="/usr/share/schooner"
+readonly USK4="/usr/share/kde4" 
+
+# other constants
+readonly gPlaceHolder='==98246242=PLACEHOLDER=8578177=='
+readonly gScript="$(basename $0)"
+readonly gUser="$(whoami)"
+
+date_stamp()
+# Provide consistent format for datestamp eg 2015-07-11_23:21:57
+{
+      echo "$(date "+%Y-%m-%d_%H:%M:%S")"
+} 
+
+prompt_y_n()
+{
+      local Prompt; Prompt=''
+      local Message; Message="$1"
+      local Response; Response=''
+
+      if [ "$Message" = '' ]; then
+            Prompt='Please type y or n: '
+      else
+            Prompt="$Message - please type y or n:"
+      fi
+
+      while [ "$Response" != 'y' ] && [ "$Response" != 'n' ] ; do
+            echo "$Prompt"; read Response
+      done
+
+      if [ "$Response" = 'y' ]; then
+            return 0
+      else
+            return 1
+      fi
+}
+
+abend()
+# Purpose: abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:error-code $2:optional-error-message
+# Returns: never returns - always exits with 9
+{
+      local ErrCode; ErrCode=$1
+      local ErrMsg; ErrMsg=$2
+      [ "$ErrMsg" != "" ] || ErrMsg="Command failed"
+      sch-log -e "Aborted: $ErrMsg" -m "$ErrCode" 	
+      exit 9
+}
+
+abend_if_root()
+# Purpose: abort script if run by root
+# Args:    error-code
+# Returns: never returns - abend always exits with 9
+{
+      [ "$1" = '' ] &&  abend '80498' 'missing arg1'
+      [ "$(whoami)" != "root" ] || abend '70243' "$gScript must not be run as root"
+}
+
+abend_if_not_root()
+# Purpose: abort script if not run by root
+# Args:    $1: error-code
+# Returns: never returns _ abend always exits with 9
+{
+      [ "$1" = '' ] &&  abend '04116' 'missing arg1'
+      [ "$(whoami)" = "root" ] || abend '78402' "$gScript must be run as root"
+}
+
+
+abend_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1: error-code $2:process-name
+# Returns: never returns - abend always exits with 9
+{
+      pidof "$2"
+      if [ "$?" = 0 ]; then
+            return 0
+      else
+            abend '03519' "aborting because $2 is running"
+      fi
+}
+
+report_if_running()
+# Purpose: call abend if specified process is running
+# Args:    $1:process-name
+# Returns: 0 if process running, else 1
+{ pidof "$2";	[ "$?" = 0 ] && { echo "$2 is running"; return 0; } }
+
+system_is_online()
+# Purpose: Detect whether system is online or not
+# Args:    none
+# Returns: 0:online 1:offline
+{
+      local TmpFile; TmpFile="$(mktemp /tmp/sch-common-sys-online.tmp.XXXXXXXXXX)"
+      local WebPage; WebPage="$(read_sch_conf 'General' 'test-web-page')"
+
+      /usr/bin/wget -q --tries=10 --timeout=20 "$WebPage" -O "$TmpFile" &> /dev/null
+
+      if [ -s "$TmpFile" ]; then
+            return 0
+      else
+            return 1
+      fi
+}
+
+prompt_if_offline()
+# Purpose: if system is offline prompt user to take some action
+# Args:    $1:message
+# Returns: 0:online 1:offline
+{
+      system_is_online
+      if [ $? = 1 ]; then
+            prompt_y_n "system is off line - abort now? "
+            if [ $? = 1 ]; then
+                  abend '46890' "system is offline and you chose to abort $gScript"
+            else
+                  system_is_online
+                  if [ $? = 1 ]; then
+                        abend '71524' "system is offline and you chose to abort $gScript"
+                  else
+                        return 0
+                  fi
+            fi
+      else
+            return 0
+      fi
+}
+
+convert_seconds_to_date()
+# Purpose: convert seconds since epoch into date
+# Args:    $1:seconds
+# Returns: 0:success 1:fail
+# Stdout:  date
+{ date --date "@$1"; }
+
+local_backup()
+# Purpose:     Provide consistent mechanism for user's short-term backups, storing
+#              copies in subdirectories of $HOME/.schooner/backups,keeping the
+#              backed-up files rotated so that a specified number are kept (the
+#              oldest gets deleted each time a backup is made). If no files have
+#              changed since the last backup, do nothing.
+#
+# Notes:       For the time being, there's no provision for automated restore.
+#
+# Args:        $1: filespec of "source" file or dir to backup
+#              $2: backupname - descriptive name for backup (see fred example above)
+#
+# Exit status: 0:success
+#              1:fail
+{
+      abend_if_root '25128'
+      local SourceDir; SourceDir="$1"
+      local BakName; BakName="$2"
+      local BaseDir; BaseDir="$HOME/.schooner/local-backup"
+      local SubDir; SubDir="$BaseDir/$BakName"
+      local MaxCopies; MaxCopies="$(get_user_conf 'Backups' 'max-cyclic-backups')"	
+      local BakFileSpec; BakFileSpec="$SubDir/$BakName-$(date_stamp)"
+	
+      dlg_question 
+            'Local Backup' \
+            "$BakName" \
+            "Do you want to backup $BakName now?" \
+            'filelight' "Yes" "Cancel" 
+	             
+      [ $? -eq 0 ] || return 1
+
+      Err="$(sch-file-exists -s "$BaseDir" -rwd)"
+      [ "$?" = 0 ] || { umask 0022; mkdir -p "$BaseDir"; }
+      if [ "$?" != 0 ]; then
+            umask 0022
+            abend '03488' "$BakName backup failed to create backup folder ($BaseDir)"
+      else
+            umask 0022
+      fi
+
+      Err="$(sch-file-exists -s "$SourceDir" -rd)"
+      if [ "$?" != 0 ]; then
+            abend '12414' "$BakName backup can't use source folder ($SourceDir) it is $Err"
+      fi
+
+      Err="$(sch-file-exists -s "$SubDir" -rwd)"
+      [ "$?" = 0 ] || { umask 0022; mkdir -p "$SubDir"; }
+      if [ "$?" != 0 ]; then
+            umask 0022
+            abend '03488' "$BakName backup failed to create backup sub-folder ($SubDir) it is $Err"
+      else
+            umask 0022
+      fi
+
+      rsync -avzq "$SourceDir" "$BakFileSpec" # TODO v and s options contradictory?
+
+      # Check that the rsync worked
+      Err="$(sch-file-exists -s "$BakFileSpec" -rw)"
+      if [ "$?" != 0 ]; then
+            abend '81643' "$BakName backup failed to create backup folder $BakFileSpec it is $Err"
+      fi
+
+      # TODO Shell Check says should use find instead of ls 'to better
+      # handle non-alphanumeric filenames
+      if [ $(ls -A "$SubDir" |wc -l) -gt "$MaxCopies" ]; then
+            cd "$SubDir" && rm -Rf "$(ls  | head -n 1)" #-B ignore '~' suffix ie backups
+      fi
+
+	# Remove older duplicates of backed-up files. Deliberately keep any directories
+	# left empty because removing them would mess up the rotation mechanism. Result of
+	# this command is to always add a new directory but only populate it with files
+	# that have changed since last backup.
+	fdupes -rqdN "$BaseDir" #r=recursive q=quiet d=delete N=noprompt 
+	
+	sch-dialog-notify -c 'Local Backup' -n "Backed up $BakName $(date)"
+	return 0
+}
+
+find_local_backup()
+# Purpose:     Allow user to find a local backup file by a combination of
+#              filename, backup-date and text search.
+
+# Exit status: 0:success 
+#              1:fail
+# StdOut:      StdOut
+{
+      local AppName; AppName='Local Backup'
+      local Caption; Caption='Search for backed-up file'
+      local Message; Message='Please enter text you want to search for'
+      local SearchText; SearchText=$(dlg_get_text "$AppName" "$Message" 'filelight')
+      grep -rls "$SearchText" "$HOME/.schooner/local-backup"
+      # TODO this function works but is very incomplete
+}
+
+dlg_get_password()
+# Purpose:     Wrapper for password dialog
+#
+# Args:        $1: window title
+#              $2: message text
+#
+# Exit status: 0:success
+#              1:fail
+#              stdout:password
+{
+	echo $(kdialog --title "$1" --password "$2")
+}
+
+dlg_msgbox()
+# Purpose:     Wrapper for password dialog
+#
+# Args:        $1: window title
+#              $2: message text
+#
+# Exit status: 0: always
+#             
+{
+	kdialog --msgbox --title "$1" "$2"
+	return 0
+}
+
+
+# eof helpers ==================================================================

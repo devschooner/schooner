@@ -1,0 +1,185 @@
+#!/bin/dash
+#===============================================================================
+# File:      sch-mini-backup
+# Created:   21/07/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#===============================================================================
+. /usr/bin/sch-include; abort_if_root
+#===============================================================================
+
+#=initialization================================================================
+SourceDir=''
+BakName=''
+SubDir='' #"$Mini_Backup_Dir/$BakName"
+SearchTxt=''
+BakFileSpec='' #"$SubDir/$BakName-$(date_stamp)"
+
+#=functions=====================================================================
+
+backup() { # $1=source-dir $2=backup-name
+      local Err=''; local SourceDir=$1; local BakName=$2
+
+      sch-file-exists -s "$Mini_Backup_Dir" -rwd
+      [ "$?" = 0 ] || { umask 0022; mkdir -p "$Mini_Backup_Dir"; }
+      if [ "$?" != 0 ]; then
+            umask 0022
+            abend '87633' "$(gettext 'mini_backup_folder_creation_failed')"
+      else
+            umask 0022
+      fi
+
+      Err="$(sch-file-exists -s "$SourceDir" -rd)"
+      if [ "$?" != 0 ]; then
+            abend '09349' "$(gettext 'mini_backup_failed')"
+      fi
+
+      Err="$(sch-file-exists -s "$SubDir" -rwd)"
+      [ "$?" = 0 ] || { umask 0022; mkdir -p "$SubDir"; }
+      if [ "$?" != 0 ]; then
+            umask 0022
+            abend '27433' "$(gettext 'mini_backup_folder_creation_failed')"
+      else
+            umask 0022
+      fi
+
+      rsync -avzq "$SourceDir" "$BakFileSpec" # TODO v and s options contradictory?
+
+      # Check that the rsync worked
+      Err="$(sch-file-exists -s "$BakFileSpec" -rw)"
+      if [ "$?" != 0 ]; then
+            abend '82340' "$(gettext 'mini_backup_folder_creation_failed')"
+      fi
+
+      # TODO Shell Check says should use find instead of ls 'to better
+      # handle non-alphanumeric filenames
+      if [ $(ls -A "$SubDir" |wc -l) -gt "$Mini_Backup_Max_Copies" ]; then
+            cd "$SubDir" && rm -Rf "$(ls  | head -n 1)" #-B ignore '~' suffix ie backups
+      fi
+
+      # Remove older duplicates of backed-up files. Deliberately keep any directories
+      # left empty because removing them would mess up the rotation mechanism. Result of
+      # this command is to always add a new directory but only populate it with files
+      # that have changed since last backup.
+      fdupes -rqdN "$Mini_Backup_Dir" #r=recursive q=quiet d=delete N=noprompt
+}
+
+retrieve() {
+# Allow user to find a local backup file by a combination of
+# filename, backup-date and text search.
+# TODO this function works but is very incomplete
+      local SearchTxt=$(sch-dlg-get-text \
+            -a "$(gettext 'schooner')" \
+            -c "$(gettext 'mini_backup')" \
+            -p "$(gettext 'enter_search_text')" \
+            -i 'filelight')
+      grep -rls "$SearchTxt" "$Mini_Backup_Dir"
+}
+
+#=main==========================================================================
+o=1; b=1; s=1; f=1
+while getopts ":o:b:s:f:h" Option
+do
+      case "$Option" in
+            o ) o=0; Operation="$OPTARG" ;;
+            b ) b=0; BakName="$OPTARG" ;;
+            s ) s=0; SourceDir="$OPTARG" ;;
+            f ) f=0; SearchTxt="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+            * ) abend_bad_option '-??' '89491' ;;
+      esac
+done
+
+[ $o -eq 0 ] || abend_bad_option '-o' '38628'
+
+if [ "$Operation" = 'backup' ]; then
+     [ $f -eq 1 ] || abend_incompatible_options '31297' '-o' '-f'
+     [ $b -eq 0 ] || abend_bad_option '-b' '47472'
+     [ "$BakName" != '' ] || abend_bad_option '-b' '51203'
+     [ $s -eq 0 ] || abend_bad_option '-s' '28904'
+     [ "$SourceDir" != '' ] || abend_bad_option '-s' '25022'
+      sch-dlg-question \
+            -a "$(gettext 'schooner')" \
+            -c "$(gettext 'mini_backup')" \
+            -q "$(gettext 'confirm_want_to_mini_backup')"
+
+      if [ $? -eq 0 ]; then
+            backup
+            if [ $? -eq 0 ]; then
+                  sch-dlg-notify \
+                        -c "$(gettext 'mini_backup')" \
+                        -n "$(gettext 'mini_backup_completed')"
+            else
+                  abend '77213' "$(gettext 'mini_backup_failed')"
+            fi
+      else
+            exit 0
+      fi
+elif [ "$Operation" = 'retrieve' ]; then
+      #summat
+else
+      abend_bad_option '-o' '27921'
+fi
+
+
+
+
+exit 0
+
+usage()
+{
+cat << EOF
+NAME
+      $This_Script - Provide consistent mechanism for user's short-term backups
+
+SYNOPSIS
+      $This_Script [OPTION]... [ARG]...
+
+DESCRIPTION
+      -h     show usage
+
+      -o     < 'backup' | 'retrieve' >
+                  operation
+
+      -s     <source-directory>
+                  filespec of "source" file or dir to backup
+
+      -b     <backup-name>
+                  backupname - descriptive name for backup
+
+      -f     <error-code> search text?
+
+      Provide consistent mechanism for user's short-term backups, storing
+      copies in subdirectories of $Mini_Backup_Dir, keeping the
+      backed-up files rotated so that a specified number are kept (the
+      oldest gets deleted each time a backup is made). If no files have
+      changed since the last backup, do nothing.
+
+EXIT STATUS
+      0      if OK
+      1      if failed
+      stdout putonstdout
+
+USAGE
+      usage+examples1
+
+      usage+examples2
+
+EOF
+}
+

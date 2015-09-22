@@ -1,0 +1,11 @@
+libreoffice/ppa
+inkscape.dev/stable
+#for vlc
+mc3man/trusty-media
+recoll-backports/recoll-1.15-on
+# for rapid-photo-downloader
+dlynch3/ppa
+cesar-crea-si/eviacam
+#only added this to get latest entangle and rapid photo downloader - remeove when possible
+#because it drags in stuff it shouldn't
+anton+/photo-video-apps '09987'

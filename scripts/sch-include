@@ -1,0 +1,133 @@
+#!/bin/dash
+# (shebang is redundant but triggers syntax colouring)
+#=======================================================================
+# File:      sch-header
+# Created:   04/08/2015
+# Purpose:   constants and utility functions for Schooner scripts
+# Copyright: © author
+# Email:
+#
+# Notes:     Order of function definitions in this file is often
+#            important. Check carefully before re-ordering them!
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+set -o errexit #temporary
+set -o nounset
+
+# system-wide constants
+readonly System_Sch_Dir='/usr/share/schooner'
+readonly Userhome_Place_Holder='==98246242=Place_Holder=8578177=='
+readonly System_Config_Default="$System_Sch_Dir/user-config"
+# enforce standard timestamp format eg 2015-07-11_23:21:57
+readonly Timestamp_Str='+%Y-%m-%d_%H:%M:%S'
+readonly Script_Started=$(date $Timestamp_Str)
+
+# i18n
+#TEXTDOMAINDIR set by system
+export TEXTDOMAIN=sch-scripts.sh
+
+# user-specific constants
+readonly This_Script="$(basename $0)"
+readonly This_User="$(whoami)"
+readonly User_Sch_Dir="$HOME/.schooner"
+readonly User_Log="$User_Sch_Dir/user-log"
+readonly User_Config="$User_Sch_Dir/user-config-default"
+readonly Mini_Backup_Dir="$User_Sch_Dir/local-backup"
+readonly Mini_Backup_Max_Copies=50
+
+# functions
+die_if_root() { [ "$This_User" != 'root' ] || { gettext 'Script must not run as root'; exit 9; } }
+
+die_if_not_root() { [ "$This_User" = 'root' ] || { gettext 'Script must run as root'; exit 9; } }
+
+die() { # $1=error-code # $2=error-msg
+      local ErrCode="$1"; local ErrMsg="$2";
+      local Source=''; local LineNo=''; local ClipSel=''
+      local Line1=''; local Line2=''; local Line3=''
+
+      [ "$ErrMsg" != '' ] || ErrMsg="$(gettext 'Command failed')"
+      # error-code must be 5 numeric chars
+      if [ ${#ErrCode} -ne 5 ]; then #internal error
+            ErrCode='08450'; ErrMsg="$(gettext 'Bad parameter')"
+      fi
+      case ${ErrCode#} in
+            *[!0-9]* ) ErrCode='48466'; ErrMsg="$(gettext 'Bad parameter')" ;;
+      esac
+
+      # grep for the calling routine in /usr/bin. To speed things up, assume
+      # there are no duplicate error codes in scripts so that the first one found is
+      # the correct one. TODO add handling for case when error code not found by grep
+      Source="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f1)"
+      Source=$(basename "$Source")
+      [ "$Source" != '' ] || Source='(unknown)'
+      LineNo="$(grep --line-number $ErrCode /usr/bin/sch* |head -n1 |cut -d: -f2)"
+      [ "$LineNo" != '' ] || LineNo='(unknown)'
+      Line1="$(gettext 'App stopped at line')"
+      Line2="$(gettext 'cause_was_error_code_error_msg')"
+      Line3="$(gettext 'msg_copied_to_clipboard'|fmt -u)"
+      ClipSel="$Script_Started: $Line1 $Line2"
+      die_if_root # qdbus line below causes odd behaviour if run as root
+      qdbus org.kde.klipper /klipper setClipboardContents "$ClipSel"
+      touch "$User_Log"
+      chmod u+rw "$User_Log"
+      echo "$Script_Started | $This_Script | line $LineNo | $ErrCode | $ErrMsg" >> "$User_Log"
+
+      kdialog \
+            --title "$(gettext 'schooner')" \
+            --caption "$(gettext 'error_message')"\
+            --error "$Line1<br><br>$Line2<br><br>$Line3"
+
+            exit 9
+}
+
+bad_option() { # $1=error-code $2=opt-string
+      local CmdLineOpt="$2" # required for msgstr in po file
+      die "$1" "$(gettext 'bad_opt')"
+}
+
+incompatible_options() { # $1=error-code $2=opt-str $3=opt-str2
+# Convenience wrapper for xgettext, allowing command line option
+# (eg -f) to be passed in.
+      local CmdLineOpt=$2 # required for msgstr in po file
+      local CmdLineOpt2=$3 # required for msgstr in po file
+      die "$1" "$(gettext 'Incompatible options')"
+
+}
+
+bad_param() { # $1=error-code $2=param-number-string (eg '$3')
+      local Param=$2 # required for msgstr in po file
+      die "$1" "$(gettext 'Bad parameter')"
+}
+
+get_user_config() { # $1=Sect $2=Key
+      die_if_root
+      sch-userconfig -o 'get' -s "$1" -k "$2"
+      # return exit status of sch-userconfig, place retrieved value on stdout
+}
+
+set_user_config() { # $1=Sect $2=Key $3=Value
+      die_if_root
+      sch-userconfig -o 'set' -s "$1" -k "$2" -v "$3"
+      # return exit status of sch-userconfig
+}
+
+# consistent format for timetamp eg 2015-07-11_23:21:57
+timestamp() { date "$Timestamp_Str"; }
+
+
+
+

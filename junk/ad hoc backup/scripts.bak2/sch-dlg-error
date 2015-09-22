@@ -1,0 +1,104 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dlg-error
+# Created:   16/07/2015
+# Purpose:   See usage function below.
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+[ "$(whoami)" != 'root' ] || { echo "sch-dlg-error can't run as root"; exit 1; }
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+      sch-dlg-error - dialog to display error message with OK button.  
+
+SYNOPSIS
+      sch-dlg-error [OPTION] [ARG]
+      
+      -r <caller>            name of calling script
+      
+      -l <line-number>       line number of error in calling script
+      
+      -c <error-code>        unique 5-char error code embedded in calling script
+      
+      -m <error-message>     message from caller describing error
+      
+      -h                     display usage
+      
+      -r, l, c, m are all required
+      if -h is used, all other options are ignored
+
+DESCRIPTION
+      Formats the arguments as a human-readable error message, with ok button to
+      close the dialog. Places a similar message, prefixed with a timestamp, on
+      the system clipboard.
+
+EXIT STATUS
+      0      if OK pressed or if -h used
+      1      if failed for any reason
+
+USAGE
+      sch-dlg-error -r 'myscript' -l '102' -c '45437' -m 'something is wrong'
+EOF
+}
+
+error_dialog() { # $1=Caller $2=LineNum $3=ErrCode $4=ErrMsg
+      local line1 Line2 Line3 ClipSel Date Time 
+      Date=$(date "+%Y-%m-%d"); Time=$(date "+%H:%M:%S")
+      Line1="Program $1 stopped at line $2." 
+      Line2="The cause was: \"Error $3 - $4\"."
+      Line3="$(echo 'This message has been copied to the clipboard.' |fmt -u)"
+      
+      # put message on clipboard
+      ClipSel="$Date at $Time: $Line1 $Line2"
+      # this qdbus line causes odd behaviour if script is run as root
+      qdbus org.kde.klipper /klipper setClipboardContents "$ClipSel" 
+      
+      kdialog \
+            --title 'Schooner' \
+            --caption 'Error Message'\
+            --error "$Line1<br><br>$Line2<br><br>$Line3"
+}
+
+abend() {  # $1=error-code $2=error-descript
+      # can't log errors - would create endless loop
+      error_dialog 'sch-dlg-error' '??' "$1" "$2"; exit 1
+}
+
+Caller=''; LineNum=''; ErrCode=''; ErrMsg=''
+r='false'; l='false'; c='false'; m='false';
+
+while getopts ":r:l:c:m:h" Option
+do
+      case "$Option" in
+            r ) r='true'; Caller="$OPTARG" ;;
+            l ) l='true'; LineNum="$OPTARG" ;;
+            c ) c='true'; ErrCode="$OPTARG" ;;
+            m ) m='true'; ErrMsg="$OPTARG" ;;
+            h ) usage; exit 0 ;;
+      esac
+done
+
+[ "$r" = 'true' ] || abend '59614' 'missing option or argument -r'
+[ "$l" = 'true' ] || abend '60412' 'missing option or argument -l'
+[ "$c" = 'true' ] || abend '14790' 'missing option or argument -c'
+[ "$m" = 'true' ] || abend '00870' 'missing option or argument -m'
+
+error_dialog "$Caller" "$LineNum" "$ErrCode" "$ErrMsg"
+exit "$?"

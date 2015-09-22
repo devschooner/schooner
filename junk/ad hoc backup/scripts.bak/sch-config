@@ -1,0 +1,190 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-config
+# Created:   14/07/2015
+# Purpose:   interface to 'ini' type configuration files, with special
+#            provision for user config file.
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage()
+{
+cat << EOF
+NAME
+       sch-config - interface to 'ini' type configuration files, with special
+                       provision for user config file
+
+SYNOPSIS
+       sch-config [OPTION]... [FILE]...
+
+DESCRIPTION
+
+       -f  <filespec>   config file to deal with
+
+       -s  <section-name>
+              
+       -k  <key-name>
+              
+       -v  <value>
+
+EXIT STATUS
+       0      if OK
+       1      if failed       
+       stdout putonstdout
+       
+USAGE
+       usage+examples1
+       
+       usage+examples2
+
+EOF
+}
+
+abend()
+# abort script after displaying and logging error message - if no
+#          error message use a generic one.
+# Args:    $1:magic-number $2:optional-error-message
+# Returns: never returns - always exits with 9
+{
+	local Magic; Magic=$1
+	local Message; Message=$2
+	[ "$Message" != "" ] || Message="Command failed"
+	sch-logger -e "Aborted: $Message" -m "$Magic" -s "$gScript"	
+	exit 1
+}
+
+get_user_conf()
+# Purpose: get value from key=value pair in schooner user config ini file
+# Args:    $1:section $2:key 
+# Returns: 0:success 1:fail
+# Stdout : if success, value corresponding to specified key, else ""
+{ ini_get_value "$gUserConf" "$1" "$2"; return $?; }
+
+set_user_conf()
+# Purpose: set value in key=value pair in schooner user config ini file
+# Args:    $1:section $2:key $3:value
+# Returns: 0:success 1:fail
+{ abend-if-root '78486'; ini_set_value "$gUserConf" "$1" "$2" "$3"; return $?; }
+
+ini_get_value()
+# Purpose: get value matching key from ini file
+# Args:    $1:filespec $2:section $3:key
+# Returns: 0:success 1:fail
+# Stdout:  if success, the returned value, else ""
+{
+	local FileSpec; local Sect; local Key; local Msg
+	FileSpec=$1; Sect=$2; Key=$3
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rf)
+	[ "$?" = 0 ] || abend '42395' "File ($FileSpec) $Msg"
+
+	if [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '80160' "Missing arg: sect [$Sect], key ($Key) or file ($FileSpec)"
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '79471' "File ($FileSpec) not found or not readable"
+	else
+		sch-crudini --get "$FileSpec" "$Sect" "$Key"
+		if [ $? ]; then
+			return 0
+		else
+			abend '88421' "unable to get [$Sect] or key ($Key) in file ($FileSpec)"
+		fi
+	fi
+}
+
+ini_set_value()
+# Purpose: set value for specified key in ini file
+# Args:    $1:filespec $2:section $3:key $4:value
+# Returns: 0:success 1:fail
+# Notes:   add new section and key as necessary
+{
+	local FileSpec; local Sect; local Key; local Value; local Msg
+	FileSpec=$1; Sect=$2; Key=$3; Value=$4
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rwf)
+	[ "$?" = 0 ] || abend '23591' "File ($FileSpec) $Msg"
+
+	if [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '35462' "Missing arg: sect [$Sect], key ($Key) or	file ($FileSpec)"
+	elif [ ! -f "$FileSpec" ] || [ ! -r "$FileSpec" ]; then
+		abend '12663' "File ($FileSpec) not found or not readable"
+	fi
+
+	sch-crudini --set "$FileSpec" "$Sect" "$Key" "$Value"
+	if [ $? ]; then
+		return 0
+	else
+		abend '49438' "unable to set [$Sect], key ($Key) or \
+			value ($Value) in file ($FileSpec)"
+	fi
+}
+
+ini_line_exists()
+# Purpose: determine if a specified record exists in an ini file
+# Args:    $1:filespec $2:section $3:key $4:value
+# Returns: 0:success 1:fail
+{
+	local FileSpec; local Sect; local Key; local Value; local RealValue
+	FileSpec=$1; Sect=$2; Key=$3; Value=$4; RealValue=''
+
+	Msg=$(sch-file-exists -s "$FileSpec" -rf)
+	[ "$?" = 0 ] || abend '76945' "File ($FileSpec) $Msg"
+
+	if [ "$Value" = "" ] || [ "$Sect" = "" ] || [ "$Key" = "" ] || [ "$FileSpec" = "" ]; then
+		abend '73843' "Missing arg: value [$alue], sect [$Sect], key ($Key) or file ($FileSpec)"
+	else
+		RealValue=$(sch-crudini --get "$FileSpec" "$Sect" "$Key")
+		if [ "$Value" = "$RealValue" ]; then
+			return 0
+		else
+			return 1
+		fi
+	fi
+}
+
+Opt_o='N';Opt_f='N';Opt_s='N';Opt_k='N';Opt_v='N';
+
+# process options and args
+while getopts "o:f:s:k:v:" Option
+do
+	case "$Option" in
+	        o ) Opt_o='Y'; Operation="$OPTARG" ;;
+		f ) Opt_f='Y'; FileSpec="$OPTARG" ;;
+		s ) Opt_s='Y'; Sect="$OPTARG";;
+		k ) Opt_k='Y'; Key="$OPTARG";; 
+		v ) Opt_v='Y'; Value="$OPTARG";; 
+		* ) usage; exit 1 ;;			   
+	esac
+done
+
+# validate options and args
+
+
+[ "$Opt_o" = 'N'] ||  abend '67543' 'missing arg -o (Operation)'
+[ "$Opt_f" = 'N'] ||  abend '74192' 'missing arg -f (FileSpec)'
+[ "$Opt_s" = 'N'] ||  abend '93142' 'missing arg -s (Section)'
+[ "$Opt_k" = 'N'] ||  abend '76501' 'missing arg -k (Key)'
+[ "$Operation" = 'get' ] || [ "$Operation" = 'set' ] || abend '29066' 'bad option or arg -o (Operation)'
+
+[ "$Operation" = 'get' ] || [ "$Operation" = 'set' ] || abend '29066' 'bad option or arg -o (Operation)'
+[ "$FileSpec" != '' ] || abend '08551' 'bad option or arg -f (FileSpec)'
+[ "$Sect" != '' ] || abend '09075' 'bad option or arg -s (Section)'
+[ "$Key" != '' ] || abend '01915' 'bad option or arg -k (Key)'
+[ "$Operation" = 'get' ] || [ "$Value" != '' ]
+
+

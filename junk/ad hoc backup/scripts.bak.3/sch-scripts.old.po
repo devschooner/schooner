@@ -1,0 +1,99 @@
+msgid "Script Failed Err Code"
+msgstr "App $This_Script failed with the following error code"
+
+msgid "cmd_failed"
+msgstr "Command failed"
+
+msgid "bad_opt"
+msgstr "Command line option is missing, invalid or has an invalid argument"
+
+msgid "bad_param"
+msgstr "Missing or invalid parameter "
+
+msgid "incompatible_opts"
+msgstr "Command line options $Cmd_Line_Opt and $Cmd_Line_Opt2 are incompatible"
+
+msgid "fail_reset_user_config"
+msgstr "Failed to reset user configuration file $User_Conf"
+
+msgid "fail_write_user_config"
+msgstr "Failed to write to user configuration file $User_Conf"
+
+msgid "mini_backup_folder_creation_failed"
+msgstr "Failed to make backup \"$BakName\". Could not create backup folder $SubDir. Error was: \"$Err\"."
+
+msgid "mini_backup_failed"
+msgstr "Failed to make backup \"$BakName\". $SourceDir was $Err."
+
+msgid "mini_backup_completed"
+msgstr "MiniBackup completed"
+
+msgid "enter_search_text"
+msgstr "Enter the text you want to search for"
+
+msgid "search_for_backed_up_file"
+msgstr "Search for backed-up file"
+
+msgid "message_copied_to_clipboard"
+msgstr "This message has been copied to the clipboard"
+
+msgid "must_run_as_root"
+msgstr "App $This_Script must be run as root"
+
+msgid "mustnt_run_as_root"
+msgstr "App $This_Script must not be run as root"
+
+msgid "schooner"
+msgstr "Schooner"
+
+msgid "error_message"
+msgstr "Error Message"
+
+msgid "mini_backup"
+msgstr "MiniBackup"
+
+msgid "confirm_want_to_mini_backup"
+msgstr "Do you want to back this up now?"
+
+msgid "app_stopped_at_line"
+msgstr "App $Source stopped at line $LineNo."
+
+msgid "cause_was_error_code_error_msg"
+msgstr "The cause was: \"Error $ErrCode - $ErrMsg\"."
+
+msgid "msg_copied_to_clipboard"
+msgstr "This message has been copied to the clipboard."
+
+msgid "status_non_existent"
+msgstr "non-existent"
+
+msgid "status non_readable"
+msgstr "non-readable"
+
+msgid "status_non_writable"
+msgstr "non-writable"
+
+msgid "status_non_executable"
+msgstr "non-executable"
+
+msgid "status_non_regular_file"
+msgstr "non-regular-file"
+
+msgid "status_non_directory"
+msgstr "non-directory"
+
+msgid "status_non_symbolic_link"
+msgstr "non-symbolic-link"
+
+msgid "status_non_empty"
+msgstr "non-empty-file"
+
+msgid "status_not_owned_by_this_uid"
+msgstr "not-owned-by-this-UID"
+
+msgid "status_not_owned_by_this_gid"
+msgstr "not-owned-by-this-GID"
+
+msgid "status_not_specified_mimetype"
+msgstr "not-specified-mimetype"
+

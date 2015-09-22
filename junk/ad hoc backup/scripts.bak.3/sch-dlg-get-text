@@ -1,0 +1,84 @@
+#!/bin/dash
+#=======================================================================
+# File:      sch-dlg-get-text
+# Created:   24/08/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-include; abend_if_root
+
+usage() {
+cat << EOF
+NAME
+      $This_Script - get user text input - show ok and cancel buttons
+
+SYNOPSIS
+      $This_Script [OPTION] [ARG]
+
+      -a <app-name>          appears left side of title
+
+      -c <caption>           appears right side of title
+
+      -p <prompt>            text of message
+
+      -i <icon>              appears in title bar
+
+      -h                     display usage
+
+      -a, c, p are all required
+      -i is optional - default is 'dialog-information'
+      -h orerrides any other options
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if 'OK' pressed and non-null -h option used
+      1      if 'No' pressed
+
+USAGE
+      $This_Script -a 'MyApp' -c 'doing something' -p 'MyPrompt' -i 'MyIcon'
+
+EOF
+}
+
+App=''; Caption=''; Prompt=''; Icon=''
+
+while getopts ":a:c:p:i:h" Option
+do
+      case "$Option" in
+            a ) App="$OPTARG";;
+            c ) Caption="$OPTARG";;
+            p ) Prompt="$OPTARG";;
+            i ) Icon="$OPTARG";;
+            h ) usage; exit 0 ;;
+            * ) abend_bad_option '-??' '13082' ;;
+      esac
+done
+
+[ "$App" != '' ] || abend_bad_option '-a' '78105'
+[ "$Caption" != '' ] || abend_bad_option '-c' '45169'
+[ "$Prompt" != '' ] || abend_bad_option '-p' '39171'
+[ "$Icon" != '' ] || Icon='dialog-information' #icon is optional
+
+Reply=$(kdialog \
+      --inputbox "$(echo $Prompt |fmt -50 -u)" \
+      --title "$App" \
+      --caption "$Caption" \
+      --icon "$Icon")
+
+[ "$Reply" != '' ] && { echo "$Reply"; exit 0; }; exit 1

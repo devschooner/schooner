@@ -1,0 +1,83 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-log
+# Created:   13/07/2015
+# Purpose:   Interface to schooner user logfile.
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+[ "$(whoami)" != 'root' ] || { echo "sch-log can't run as root"; exit 1; }
+#=======================================================================
+usage() {
+cat << EOF
+NAME
+       sch-log - interface to schooner user logfile
+
+SYNOPSIS
+       sch-log [OPTION]... [ARG]...
+
+DESCRIPTION
+
+      -e  <log-entry>           free format text 
+      
+      -h                        help: display usage.
+       
+
+      -h (any other options combined with -h will be ignored)
+      
+EXIT STATUS
+      0:      if made log entry
+      1:      if failed to make log entry   
+       
+USAGE
+      sch-log -e 'oops just made an error'
+EOF
+}
+
+########## initializations #####################################################
+ 
+Entry=''; e='false'
+readonly LogFile="$HOME/.schooner/log.txt"
+readonly Date=$(date "+%Y-%m-%d")
+readonly Time=$(date "+%H:%M:%S")
+
+########## functions ###########################################################
+
+abend () { # $1=line-no $2=error-code $3=error-message 
+      sch-dlg-error -r 'sch-log' -l "$1" -c "$2" -m "$3"
+      exit 1
+}
+
+########## main ################################################################
+
+while getopts ":e:h" Option
+do
+      case "$Option" in		
+          e ) e='true'; Entry="$OPTARG" ;;
+          h ) usage; exit 0 ;;
+      esac
+done
+
+[ "$e" = 'true' ] || abend '??' '86421' 'missing option or argument -e'
+
+touch "$LogFile"
+Reason=$(sch-file-exists -s "$LogFile" -rwf)
+[ "$?" = 0 ] || abend '??' '68143' "cannot access log - $LogFile is $Reason"
+
+exit 0
+
+ 

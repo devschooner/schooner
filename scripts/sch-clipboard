@@ -1,0 +1,91 @@
+#!/bin/dash
+#===============================================================================
+# File:      sch-clipboard
+# Created:   02/10/2014
+# Purpose:   manipulate clipboard and klipper in useful ways
+# Author:    Bill Cane
+# Email:     schoonerdemo@gmx.com
+# Copyright: © Bill Cane
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#===============================================================================
+
+
+clear_history() {
+rm -f "$HOME/$kde/share/apps/klipper/history*"
+      qdbus org.kde.klipper /klipper clearClipboardHistory
+      # return value of qdbus command
+}
+
+get_selection()
+{
+ 	qdbus org.kde.klipper /klipper getClipboardContents
+	 # return value of qdbus command
+}
+
+set_selection()
+{
+      local Text; Text="$1"
+      qdbus org.kde.klipper /klipper setClipboardContents "$Text"
+	 # return value of qdbus command
+}
+
+Option=''
+while getopts "cs:g" Option
+do
+	case "$Option" in
+		c ) clear_history; exit $? ;;
+		s ) set_selection $2; exit $? ;;
+		g ) get_selection; exit $? ;;
+		h ) usage; exit 0 ;;
+	esac
+done
+
+usage()
+{
+      cat << EOF
+      NAME
+            sch-clipboard - manipulate clipboard and klipper in useful ways
+
+      SYNOPSIS
+            sch-clipboard [OPTION]... [ARG]...
+
+      NOTES
+            wrapper for qdbus org.kde.klipper /klipper
+
+      DESCRIPTION
+
+            -c clear history
+
+            -s set selection [ARG]
+                  put text ARG on clipboard
+
+            -g get selection
+                  get current selection from clipboard onto stdout
+
+
+
+      EXIT STATUS
+            0      if OK
+            1      if failed
+            stdout selected text (option -g)
+
+      USAGE
+            sch-clipboard
+
+EOF
+}
+
+

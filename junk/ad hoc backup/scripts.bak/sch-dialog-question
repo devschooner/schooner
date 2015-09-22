@@ -1,0 +1,149 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-dialog-question
+# Created:   16/07/2015
+# Purpose:   Display question with yes and no buttons 
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+
+usage() {
+cat << EOF
+NAME
+      sch-dialog-question - display question with Yes and No buttons
+
+SYNOPSIS
+      sch-dialog-question [OPTION] [ARG]
+      
+      -a <app-name>          appears left side of title
+      
+      -c <caption>           appears right side of title
+      
+      -q <question>          text of question
+      
+      -i <icon>              appears in title bar
+      
+      -h                     display usage
+      
+      -a, c, q, i are all required
+      -h orerrides any other options
+
+DESCRIPTION
+
+EXIT STATUS
+      0      if 'Yes' pressed or -h option used
+      1      if 'No' pressed
+
+USAGE
+      sch-dialog-question -a 'MyApp' -c 'doing something' -q 'MyQuestion -i 'MyIcon'
+
+EOF
+}
+
+abend() { sch-log -m "$2" -e "$1";  exit 9; } # $1=error-code $2=error-descript
+
+App=''; Caption=''; Question=''; Icon='dialog-information'
+a='false'; c='false'; q='false'; i='false'
+
+while getopts ":a:c:q:i:h" Option
+do
+      case "$Option" in
+            a ) a='true'; App="$OPTARG";;
+            c ) c='true'; Caption="$OPTARG";;
+            q ) q='true'; Question="$OPTARG";;
+            i ) i='true'; Icon="$OPTARG";;
+            h ) usage; exit 0 ;;
+            ? ) abend '11110' "Invalid option" ;;
+      esac
+done
+
+[ "$a" = 'false' ] && abend '91404' "Missing option -a (app-name)"
+[ "$App" = '' ] && abend '52233' "Missing arg to opt -a (app-name)"
+
+[ "$c" = 'false' ] && abend '41459' "Missing option -c (caption)"
+[ "$Caption" = '' ] && abend '60500' "Missing arg to opt -c (caption)"
+
+[ "$q" = 'false' ] && abend '35676' "Missing option -q (question)"
+[ "$Question" = '' ] && abend '33446' "Missing arg to opt -q (question)"
+
+kdialog \
+      --yesno "$(echo $Question |fmt -50 -u)" \
+      --title "$App" \
+      --icon "$Icon" \
+      --caption "$Caption" 
+
+exit $? 
+
+
+
+
+dlg_question()
+# Purpose:     Display question with Yes and No buttons (button Text must be specified). Optionally display a
+#              "don't show again" checkbox
+#
+# Notes:       If $7 exists, display the "don't show again" checkbox and treat $3
+#              as prefix for "don't show again" key in local config file. For example
+#              if $7=MyApp, key will be MyAppDontShowAgain
+#
+# Args:        $1: appname
+#              $2: caption
+#              $3: question
+#              $4: icon
+#              $5: yes-label
+#              $6: no-label
+#              $7: dontagain-key (optional)
+#
+#
+# Exit status: 0:success
+#              1:fail
+#              stdout:password
+{
+        local AppName; AppName="$1"
+        local Caption; Caption="$2"
+        local Question; Question="$3"
+        local Icon; Icon="$4"
+        local YesLabel; YesLabel="$5"
+        local NoLabel; NoLabel="$6"
+        local DontAgainKey; DontAgainKey="$7"
+                
+        [ "$Caption" = '' ] && abend '28018' "Missing Arg1 (Caption)"
+        [ "$Question" = '' ] && abend '74888' "Missing Arg2 (Question)"
+        [ "$Icon" = '' ] && abend '82953' "Missing Arg3 (Icon)"
+        [ "$YesLabel" = '' ] && abend '31520' "Missing Arg4 (YesLabel)"
+        [ "$YesLabel" = '' ] && abend '67976' "Missing Arg5 (NoLabel)"
+        
+        # TODO possibly format the message
+        
+        if [ "$DontAgainKey" = '' ]; then
+            kdialog --title "$AppName" \
+                    --caption "$Caption" \
+                    --yesno "$Question" \
+                    --yes-label "$YesLabel" \
+                    --no-label "$NoLabel" \
+                    --icon "$Icon" 
+                    return $?
+      else
+            kdialog --title "$AppName" \
+                    --caption "$Caption" \
+                    --yesno "$Question" \
+                    --yes-label "$YesLabel" \
+                    --no-label "$NoLabel" \
+                    --icon "$Icon" \
+                    --dontagain "$gUserConf:$DontAgainKey"
+                    return $?
+      fi
+}

@@ -1,0 +1,117 @@
+#!/bin/dash 
+#=======================================================================
+# File:      sch-valid-posint
+# Created:   05/08/2015
+# Purpose:   See usage function below
+# Copyright: © Bill Cane
+# Email:     
+#
+# Licence: This program is free software: you can redistribute it
+# and/or modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation, either version 3 of
+# the License, or(at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#=======================================================================
+. /usr/bin/sch-constants
+
+#=initialization========================================================
+v=1; t=1; b=1; d=1
+Var=0; Top=0; Bot=0; Digits=0; Length=0
+
+#=functions=============================================================
+usage()
+{
+cat << EOF
+NAME
+      $THIS_SCRIPT - test whether variable is a valid positive integer 
+
+SYNOPSIS
+      $THIS_SCRIPT [OPTION]... [FILE]...
+
+DESCRIPTION
+      -v  <string>
+            variable to be tested
+
+      -t  <integer>
+             largest (top) valid value
+
+      -b  <integer>
+             smallest (bottom) valid value
+
+      -d  <integer>
+            number of digits that are valid
+            
+       -h help
+            display this help and exit
+EXIT STATUS
+      0      if argument to -v is valid as a positive integer
+      1      if otherwise
+
+       
+USAGE
+
+EOF
+}
+
+is_integer() { 
+      case ${Var#} in
+            *[!0-9]* ) return 1 ;;
+            * ) return 0 ;;
+      esac
+}
+
+abend() { sch-error -c "$1" -m "$2";  exit 1; } # $1=error-code $2=error-message
+
+#=main==================================================================
+
+while getopts ":v:t:b:d:h" Option
+do
+      case "$Option" in       
+            v ) v=0 Var="$OPTARG" ;;
+            t ) t=0; Top="$OPTARG";;
+            b ) b=0; Bot="$OPTARG";; 
+            d ) d=0; Digits="$OPTARG";;
+            h ) usage; exit 0 ;;        
+      esac
+done
+
+[ $v -eq 0 ] || abend '37651' 'missing option or argument -v'
+
+if [ $t -eq 0 ]; then
+      is_integer "$Top" || abend '07688' 'invalid argument to option -t'
+fi
+
+if [ $b -eq 0 ]; then
+      is_integer "$Bot" || abend '42512' 'invalid argument to option -b'
+fi
+
+if [ $d -eq 0 ]; then
+      is_integer "$Digits" || abend '99448' 'invalid argument to option -d'
+fi
+
+if [ $t -eq 0 ] && [ $b -eq 0 ]; then
+      [ $Top -gt $Bot ] || abend '53071' 'top-bound (-t) exceeds bottom-bound (-b)'
+fi
+
+if [ $d -eq 0 ] && [ $t -eq 0 ]; then
+      abend '79159' 'options -d and -t cannot be combined'
+fi
+
+if [ $d -eq 0 ] && [ $b -eq 0 ]; then
+      abend '83323' 'options -d and -b cannot be combined'
+fi
+
+if [ $d -eq 0 ]; then
+      size=${#Var}; [ $size -eq $Digits ] || exit 1
+fi
+
+is_integer "$Val" # script exits with this value
+
